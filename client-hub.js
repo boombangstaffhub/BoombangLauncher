@@ -180,7 +180,7 @@
     if(!alState){setTimeout(alLoad,0);return '<div class="hub-section"><div class="hub-small">Cargando…</div></div>';}
     const items=alState.items||[];
     const thumb=it=>it.type==='visual'?`<img class="al-thumb" data-al-thumb="${esc(it.id)}" alt="">`:'<span class="sb-chip">🔔</span>';
-    const sub=it=>it.type==='visual'?'Reconocido por su forma':esc(String(it.src).split('/').pop()||it.src);
+    const sub=it=>it.type==='visual'?`Reconocido por su forma · <b class="al-live" data-al-live="${esc(it.id)}">…</b>`:esc(String(it.src).split('/').pop()||it.src);
     const rows=items.map((it,i)=>alRename===i
       ?`<div class="sb-item">${thumb(it)}<input id="alName" class="hub-input" maxlength="24" value="${esc(it.label)}" style="flex:1"><button class="hub-mini" data-al-name-save="${i}">Guardar</button><button class="hub-mini" data-al-name-cancel>✕</button></div>`
       :`<div class="sb-item">${thumb(it)}<div class="sb-color-name"><strong>${esc(it.label)}</strong><span>${sub(it)}</span></div><button class="hub-mini" data-al-rename="${i}" title="Cambiar nombre">✎</button><button class="hub-mini" data-al-del="${i}" title="Quitar">🗑</button></div>`).join('');
@@ -190,9 +190,22 @@
       ${hasVisual?`<div class="hub-row" style="margin-top:10px;align-items:center"><span class="hub-small" style="flex:1">Sensibilidad para objetos reconocidos por su forma. Si salta sin que haya nada, bájala; si no salta, súbela.</span><select id="alSens" class="hub-select">${[['alta','Alta'],['media','Media'],['baja','Baja']].map(([v,l])=>`<option value="${v}" ${alState.sensitivity===v?'selected':''}>${l}</option>`).join('')}</select></div>`:''}</div>
     <div class="hub-section"><div class="hub-label">OBJETOS (${items.length}/12)</div><div class="sb-intro">Dos formas de enseñarle un objeto: cuando caiga uno, pulsa <b>Aprender objeto</b> y haz clic en él dentro del juego (ese clic no llega al juego); o <b>Sube una imagen</b> recortada del objeto. Se reconoce por su forma, no por el color, así que funciona con lluvia, niebla o sombras.</div>
       <div class="sb-items">${rows||'<div class="hub-empty">Aún no hay objetos. Aprende el primero cuando caiga uno.</div>'}</div>
+      ${hasVisual?'<div class="hub-small" id="alLiveNote" style="margin-top:8px">El porcentaje es cuánto se parece ahora mismo lo que hay en pantalla a cada objeto. Suena al pasar de <b id="alThr">…</b>.</div>':''}
       <div class="hub-row" style="margin-top:10px"><button class="hub-btn primary" id="alLearn" ${items.length>=12?'disabled':''}>🔔 Aprender objeto</button><button class="hub-btn" id="alUpload" ${items.length>=12?'disabled':''}>🖼 Subir imagen</button><input type="file" id="alFile" accept="image/png,image/jpeg,image/webp,image/bmp" multiple hidden></div></div>`;
   }
+  let alLiveTimer=null;
+  async function alLiveTick(){
+    if(tab!=='alerts'||!open&&!standalone()){clearInterval(alLiveTimer);alLiveTimer=null;return;}
+    const els=root.querySelectorAll('[data-al-live]');if(!els.length){clearInterval(alLiveTimer);alLiveTimer=null;return;}
+    let r=null;try{r=await ipcRenderer.invoke('alerts:scores',profileId);}catch(_){}
+    const thr=q('#alThr');if(thr&&r)thr.textContent=Math.round(r.threshold*100)+'%';
+    els.forEach(el=>{const id=el.dataset.alLive;let txt='—',cls='';
+      if(!r||!alState.enabled)txt='aviso apagado';else if(!r.watching)txt='—';else if(!r.ok||Date.now()-r.at>4000)txt='no se ve el juego';
+      else if(id in r.scores){const v=Math.max(0,r.scores[id]);txt='ahora '+Math.round(v*100)+'%';cls=v>=r.threshold?'hit':v>=r.threshold-0.1?'near':'';}
+      el.textContent=txt;el.className='al-live '+cls;});
+  }
   function bindAlerts(){
+    clearInterval(alLiveTimer);alLiveTimer=null;if(root.querySelector('[data-al-live]')){alLiveTick();alLiveTimer=setInterval(alLiveTick,1000);}
     root.querySelectorAll('[data-al-thumb]').forEach(async im=>{try{const u=await ipcRenderer.invoke('alerts:template',im.dataset.alThumb);if(u)im.src=u;}catch(_){}});
     const sens=q('#alSens');if(sens)sens.onchange=()=>alSave({sensitivity:sens.value},'Sensibilidad: '+sens.options[sens.selectedIndex].text+'.');
     const up=q('#alUpload'),file=q('#alFile');if(up&&file){up.onclick=()=>file.click();file.onchange=async()=>{const files=[...(file.files||[])].slice(0,12);let n=0;for(const f of files){try{const url=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});alState=await ipcRenderer.invoke('alerts:add-image',url);n++;}catch(e){toast(String(e?.message||'No se pudo añadir.').replace(/^Error invoking remote method '[^']+': (Error: )?/,''));}}file.value='';if(n)toast(n===1?'Objeto añadido.':`${n} objetos añadidos.`);render();};}

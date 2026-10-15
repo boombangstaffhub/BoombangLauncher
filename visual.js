@@ -52,7 +52,25 @@ function prepTemplate(img) {
   return { data: t, w, h, norm: Math.sqrt(ss) };
 }
 
+// Resize a grey image (bilinear). Used to also try the object a bit smaller / bigger than in its picture.
+function resize(img, s) {
+  const w = Math.max(4, Math.round(img.w * s)), h = Math.max(4, Math.round(img.h * s)), out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const fy = Math.min(img.h - 1.001, (y + 0.5) / s - 0.5 < 0 ? 0 : (y + 0.5) / s - 0.5), y0 = Math.floor(fy), ay = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.min(img.w - 1.001, (x + 0.5) / s - 0.5 < 0 ? 0 : (x + 0.5) / s - 0.5), x0 = Math.floor(fx), ax = fx - x0;
+      const i = y0 * img.w + x0;
+      out[y * w + x] = (img.data[i] * (1 - ax) + img.data[i + 1] * ax) * (1 - ay) + (img.data[i + img.w] * (1 - ax) + img.data[i + img.w + 1] * ax) * ay;
+    }
+  }
+  return { data: out, w, h };
+}
+const VARIANT_SCALES = [0.88, 1, 1.12];
+// Grey picture of the object -> its outline at 3 sizes, ready to compare.
+function prepVariants(gray) { return VARIANT_SCALES.map(s => prepTemplate(edges(s === 1 ? gray : resize(gray, s)))); }
+
 // Best normalised cross-correlation of template `t` (prepared) over `frame`. Returns {score, x, y} in frame cells.
+// Coarse pass every 2 cells, then a fine pass around the best spot: about 4x cheaper than checking every cell.
 function bestMatch(frame, t) {
   const { data: I, w: W, h: H } = frame, { data: T, w, h, norm } = t;
   if (w > W || h > H || norm < 1e-3) return { score: 0, x: 0, y: 0 };
@@ -67,19 +85,33 @@ function bestMatch(frame, t) {
     }
   }
   let best = -1, bx = 0, by = 0;
-  for (let y = 0; y + h <= H; y++) {
-    for (let x = 0; x + w <= W; x++) {
-      const a = y * W1 + x, b = a + w, c = (y + h) * W1 + x, d = c + w;
-      const sum = S[d] - S[b] - S[c] + S[a];
-      const var_ = SS[d] - SS[b] - SS[c] + SS[a] - (sum * sum) / n;
-      if (var_ < n * 4) continue;                   // flat area (sky, floor): nothing to recognise there
-      let num = 0;
-      for (let ty = 0; ty < h; ty++) {
-        let p = (y + ty) * W + x, q = ty * w;
-        for (let tx = 0; tx < w; tx++) num += I[p++] * T[q++];
+  const at = (x, y) => {
+    const a = y * W1 + x, b = a + w, c = (y + h) * W1 + x, d = c + w;
+    const sum = S[d] - S[b] - S[c] + S[a];
+    const var_ = SS[d] - SS[b] - SS[c] + SS[a] - (sum * sum) / n;
+    if (var_ < n * 4) return -1;                    // flat area (sky, floor): nothing to recognise there
+    let num = 0;
+    for (let ty = 0; ty < h; ty++) {
+      let p = (y + ty) * W + x, q = ty * w;
+      for (let tx = 0; tx < w; tx++) num += I[p++] * T[q++];
+    }
+    return num / (Math.sqrt(var_) * norm);
+  };
+  const tops = [];                                   // best few coarse spots
+  for (let y = 0; y + h <= H; y += 2) {
+    for (let x = 0; x + w <= W; x += 2) {
+      const sc = at(x, y);
+      if (tops.length < 4 || sc > tops[tops.length - 1].s) {
+        tops.push({ s: sc, x, y }); tops.sort((p, q) => q.s - p.s); if (tops.length > 4) tops.pop();
       }
-      const score = num / (Math.sqrt(var_) * norm);
-      if (score > best) { best = score; bx = x; by = y; }
+    }
+  }
+  for (const tp of tops) {
+    for (let y = Math.max(0, tp.y - 2); y <= Math.min(H - h, tp.y + 2); y++) {
+      for (let x = Math.max(0, tp.x - 2); x <= Math.min(W - w, tp.x + 2); x++) {
+        const sc = at(x, y);
+        if (sc > best) { best = sc; bx = x; by = y; }
+      }
     }
   }
   return { score: best, x: bx, y: by };
@@ -91,8 +123,8 @@ const { parentPort } = require('worker_threads');
 ${bestMatch.toString()}
 parentPort.on('message', msg => {
   const frame = { data: new Float32Array(msg.frame), w: msg.w, h: msg.h };
-  const out = msg.templates.map(t => ({ id: t.id, ...bestMatch(frame, { data: new Float32Array(t.data), w: t.w, h: t.h, norm: t.norm }) }));
+  const out = msg.templates.map(t => ({ id: t.id, ...bestMatch(frame, { data: new Float32Array(t.data), w: t.w, h: t.h, norm: t.norm }) }));   // one entry per size variant
   parentPort.postMessage({ job: msg.job, results: out });
 });`;
 
-module.exports = { SCALE, THRESHOLDS, REARM, grayDown, edges, prepTemplate, bestMatch, WORKER_SOURCE };
+module.exports = { SCALE, THRESHOLDS, REARM, VARIANT_SCALES, grayDown, edges, resize, prepTemplate, prepVariants, bestMatch, WORKER_SOURCE };

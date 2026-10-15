@@ -734,6 +734,7 @@ const templateFile = id => path.join(TEMPLATE_DIR, `${id}.png`);
 const visCache = new Map();             // id -> prepared template
 const visHigh = new Map();              // `${profile}:${id}` -> currently matched (rings only on the way up)
 const visLastRing = new Map();          // profile -> time of last chime
+const visScores = new Map();            // profile -> { at, ok, scores: { id: best score } }  (shown live in the Hub)
 let visWorker = null, visTimer = null, visBusy = false, visJob = 0;
 const visPending = new Map();
 function loadTemplate(id) {
@@ -742,7 +743,8 @@ function loadTemplate(id) {
     const img = nativeImage.createFromPath(templateFile(id));
     if (img.isEmpty()) return null;
     const { width, height } = img.getSize();
-    const t = visual.prepTemplate(visual.edges(visual.grayDown(img.toBitmap(), width, height)));
+    const t = visual.prepVariants(visual.grayDown(img.toBitmap(), width, height));   // 3 sizes of its outline
+    if (!t.some(v => v.norm > 1)) return null;
     visCache.set(id, t);
     return t;
   } catch (_) { return null; }
@@ -780,20 +782,21 @@ function runMatch(frame, templates) {
     }
     const job = ++visJob; visPending.set(job, resolve);
     visWorker.postMessage({ job, frame: frame.data.buffer, w: frame.w, h: frame.h,
-      templates: templates.map(t => ({ id: t.id, data: t.t.data.slice().buffer, w: t.t.w, h: t.t.h, norm: t.t.norm })) }, [frame.data.buffer]);
+      templates: templates.flatMap(t => t.t.map(v => ({ id: t.id, data: v.data.slice().buffer, w: v.w, h: v.h, norm: v.norm }))) }, [frame.data.buffer]);
   });
 }
 function ringFromMain(profileId, label, volume) {
   const game = getGame(profileId);
   const now = Date.now();
-  if (now - (visLastRing.get(profileId) || 0) < 4000) return;
+  if (now - (visLastRing.get(profileId) || 0) < 4000) return false;   // rang a moment ago: try again on the next look
   visLastRing.set(profileId, now);
-  if (!game || game.isDestroyed()) return;
+  if (!game || game.isDestroyed()) return false;
   if (!game.isFocused()) {
     try { game.flashFrame(true); if (!game.__bbFlashing) { game.__bbFlashing = true; game.once('focus', () => { game.__bbFlashing = false; try { game.flashFrame(false); } catch (_) {} }); } } catch (_) {}
   }
   if (game.webContents.isAudioMuted()) notifyLauncher('alerts:chime', volume);
   sendClientCommand(profileId, { type: 'drop-alert-ring', label, volume, sound: !game.webContents.isAudioMuted() }).catch(() => {});
+  return true;
 }
 async function visualTick() {
   if (visBusy) return;
@@ -804,16 +807,27 @@ async function visualTick() {
   const thr = visual.THRESHOLDS[cfg.sensitivity] || visual.THRESHOLDS.media;
   try {
     for (const [id, game] of games) {
-      if (!game || game.isDestroyed() || game.isMinimized() || !game.isVisible()) continue;
-      let img; try { img = await game.webContents.capturePage(); } catch (_) { continue; }
-      if (!img || img.isEmpty()) continue;
+      if (!game || game.isDestroyed()) continue;
+      // Also works with the window minimised or behind others: the page is asked for a frame without showing it.
+      let img = null;
+      try { img = await game.webContents.capturePage(undefined, { stayHidden: true }); } catch (_) { img = null; }
+      if ((!img || img.isEmpty()) && !game.isMinimized()) { try { img = await game.webContents.capturePage(); } catch (_) { img = null; } }
+      if (!img || img.isEmpty()) {
+        // Can't see the game right now: forget what was on screen, so the next object rings even if it looks the same.
+        for (const t of tpls) visHigh.set(`${id}:${t.id}`, false);
+        visScores.set(id, { at: Date.now(), ok: false, scores: {} });
+        continue;
+      }
       const { width, height } = img.getSize();
       const frame = visual.edges(visual.grayDown(img.toBitmap(), width, height));
       const results = await runMatch(frame, tpls);
-      for (const r of results) {
-        const key = `${id}:${r.id}`, was = visHigh.get(key) === true;
-        if (r.score >= thr && !was) { visHigh.set(key, true); const t = tpls.find(x => x.id === r.id); ringFromMain(id, t ? t.label : 'Objeto', cfg.volume); }
-        else if (r.score < visual.REARM && was) visHigh.set(key, false);
+      const best = {};
+      for (const r of results) if (!(r.id in best) || r.score > best[r.id]) best[r.id] = r.score;   // best of the 3 sizes
+      visScores.set(id, { at: Date.now(), ok: true, scores: best });
+      for (const [tid, score] of Object.entries(best)) {
+        const key = `${id}:${tid}`, was = visHigh.get(key) === true;
+        if (score >= thr && !was) { const t = tpls.find(x => x.id === tid); if (ringFromMain(id, t ? t.label : 'Objeto', cfg.volume)) visHigh.set(key, true); }
+        else if (score < visual.REARM && was) visHigh.set(key, false);
       }
     }
   } finally { visBusy = false; }
@@ -839,6 +853,11 @@ ipcMain.handle('alerts:add-image', (_e, dataUrl) => {
   const img = nativeImage.createFromDataURL(dataUrl);
   if (img.isEmpty()) throw new Error('No se pudo leer la imagen.');
   return addVisualItem(saveTemplateImage(img));
+});
+ipcMain.handle('alerts:scores', (_e, profileId) => {
+  const cfg = dropAlertConfig();
+  const v = visScores.get(String(profileId || ''));
+  return { threshold: visual.THRESHOLDS[cfg.sensitivity] || visual.THRESHOLDS.media, watching: Boolean(visTimer), ...(v || { at: 0, ok: false, scores: {} }) };
 });
 ipcMain.handle('alerts:template', (_e, id) => {
   if (!/^[a-z0-9]{6,24}$/.test(String(id || ''))) return '';
