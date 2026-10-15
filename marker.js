@@ -11,7 +11,7 @@ const COLORS = ['#ff4d67', '#ffd34d', '#55d9ff', '#54df94', '#ffffff'];
 const SIZES = { s: 3, m: 6, l: 11 };
 const STAMPS = { wrong: { char: '✕', bg: '#e25555' }, safe: { char: '✓', bg: '#36c47f' }, maybe: { char: '?', bg: '#f0b43c' }, target: { char: '◎', bg: '#4a9bff' } };
 const TOOLS = ['mouse', 'pen', 'wrong', 'safe', 'maybe', 'target'];
-const ZONE_WIDTH = { s: 90, m: 127, l: 165 };        // "Marcar zona" uses the vine picture (assets/liana.png), sized with S/M/L
+const ZONE_WIDTH = { s: 68, m: 95, l: 125 };         // "Marcar zona" uses the vine picture (assets/liana.png), sized with S/M/L
 
 // The vine picture, read once from the app folder (also works from inside the installed app).
 let zoneUrl = null;
