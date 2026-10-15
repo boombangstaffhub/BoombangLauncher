@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('bb', {
   client: { openPanel: id => ipcRenderer.invoke('client:open-panel', id) },
   app: { openExternal: url => ipcRenderer.invoke('app:openExternal', url), openPath: target => ipcRenderer.invoke('app:openPath', target), openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'), version: () => ipcRenderer.invoke('app:version') },
   diagnostics: { get: () => ipcRenderer.invoke('diagnostics:get') },
+  alerts: { onChime: cb => { const handler = (_e, volume) => cb(volume); ipcRenderer.on('alerts:chime', handler); return () => ipcRenderer.removeListener('alerts:chime', handler); } },
   update: {
     check: () => ipcRenderer.invoke('update:check'),
     apply: () => ipcRenderer.invoke('update:apply'),

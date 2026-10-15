@@ -35,6 +35,7 @@ const APP_ICON = path.join(__dirname, 'assets', process.platform === 'win32' ? '
 const LAUNCHER_VERSION = app.getVersion();
 const { pingHost, RttTracker, DEFAULT_PING_HOST } = require('./rtt');
 const { createUpdater, isNewer, notesFor, readConfig } = require('./updater');
+const { normalizeConfig: normalizeDropAlert } = require('./drops');
 
 const DEFAULT_SETTINGS = {
   autoLogin: true,
@@ -42,6 +43,7 @@ const DEFAULT_SETTINGS = {
   autoUpdateCheck: true,
   autoclickInterval: 1,
   autoclickKeys: null,       // null = F3 / F1 / F2 (set in the BB Hub)
+  dropAlert: null,           // aviso de objetos (BB Hub → Avisos)
   hideLauncherOnGameLaunch: false,
   rememberWindowSize: true,
   checkServerOnStart: true,
@@ -668,6 +670,60 @@ ipcMain.handle('autoclick:pause', (_e, on) => {
   syncAutoclick();
   if (on) autoclickPauseTimer = setTimeout(() => { autoclickPausedUntil = 0; syncAutoclick(); }, 30500);
   return true;
+});
+// ---- Aviso de objetos (drops.js): global, the same for every profile ----
+const dropAlertConfig = () => normalizeDropAlert(readSettings().dropAlert || {});
+function broadcastDropAlert() {
+  const config = dropAlertConfig();
+  for (const id of games.keys()) sendClientCommand(id, { type: 'drop-alert-config', config }).catch(() => {});
+}
+ipcMain.handle('alerts:get', () => dropAlertConfig());
+ipcMain.handle('alerts:save', (_e, patch) => {
+  const p = patch && typeof patch === 'object' ? patch : {};
+  const cur = dropAlertConfig(), next = { ...cur, items: [...cur.items] };
+  if ('enabled' in p) next.enabled = Boolean(p.enabled);
+  if ('volume' in p) next.volume = p.volume;
+  if (Array.isArray(p.items)) next.items = p.items;
+  if (p.addItem && typeof p.addItem === 'object') {
+    if (!next.items.some(i => i.src === p.addItem.src)) next.items.push({ src: p.addItem.src, cls: p.addItem.cls, label: `Objeto ${next.items.length + 1}` });
+    next.enabled = true;                           // teaching an object turns the alert on
+  }
+  const saved = normalizeDropAlert(next);
+  writeSettings({ ...readSettings(), dropAlert: saved });
+  broadcastDropAlert();
+  return saved;
+});
+// A learned object appeared: blink the taskbar button if that window is not in front.
+// If the game is muted, the chime is played by the launcher window instead.
+ipcMain.handle('alerts:drop', (_e, profileId, info) => {
+  const game = getGame(String(profileId || ''));
+  const volume = Math.max(0, Math.min(100, Number(info && info.volume) || 0));
+  if (game && !game.isDestroyed()) {
+    if (!game.isFocused()) {
+      try {
+        game.flashFrame(true);
+        if (!game.__bbFlashing) { game.__bbFlashing = true; game.once('focus', () => { game.__bbFlashing = false; try { game.flashFrame(false); } catch (_) {} }); }
+      } catch (_) {}
+    }
+    if (game.webContents.isAudioMuted()) { notifyLauncher('alerts:chime', volume); return { playHere: false }; }
+  }
+  return { playHere: true };
+});
+ipcMain.handle('alerts:debug', (_e, text) => {
+  try { const file = path.join(DATA_ROOT, 'drop-debug.txt'); fs.writeFileSync(file, `BoomBang Launcher ${LAUNCHER_VERSION}\n${String(text || '').slice(0, 8000)}\n`); return file; } catch (_) { return ''; }
+});
+ipcMain.handle('alerts:test', (_e, profileId, volume) => {
+  const id = String(profileId || '');
+  const game = getGame(id);
+  if (game && !game.isDestroyed() && !game.webContents.isAudioMuted()) { sendClientCommand(id, { type: 'drop-alert-test', volume }).catch(() => {}); return 'game'; }
+  notifyLauncher('alerts:chime', volume); return 'launcher';
+});
+ipcMain.handle('alerts:learn', async (_e, profileId) => {
+  const id = String(profileId || '');
+  const game = getGame(id);
+  if (!game || game.isDestroyed()) return false;
+  try { game.show(); game.focus(); } catch (_) {}
+  return sendClientCommand(id, { type: 'drop-alert-learn' });
 });
 ipcMain.handle('server:check', () => broadcastServerStatus());
 ipcMain.handle('news:fetch', () => fetchNews());

@@ -16,6 +16,7 @@ Launcher de escritorio **no oficial** para jugar a [BoomBang](https://www.boomba
   - Atajos de teclado configurables para cada botón.
 - **BB Hub**: panel para configurar la Smart Bar, calibrar el upper, copiar la configuración a tus otros perfiles y ajustar la vista del cliente.
 - **Autoclick integrado** (desactivado por defecto): F3 guarda la posición del ratón, F1 empieza y F2 para (teclas y velocidad configurables en el BB Hub). Dentro de BoomBang los clics van directos al juego y **tu ratón queda libre**.
+- **Aviso de objetos**: un sonido suave cuando cae un objeto que le hayas enseñado (BB Hub → Avisos). Solo avisa; recogerlo lo haces tú.
 - **7 diseños animados** para el launcher: Galaxy Crystal, Aurora Boreal, Inferno, Océano, Sakura, Neon Retro y Halloween.
 
 ![BB Hub](docs/hub-smartbar.jpg)
@@ -113,6 +114,7 @@ El launcher se actualiza solo:
 | `index.html`, `renderer.js`, `style.css`, `galaxy.js` | Ventana del launcher y sus diseños animados |
 | `game-preload.js` | Se ejecuta dentro del juego: auto-login, vista del cliente, ping |
 | `smartbar.js` | La Smart Bar (botones, upper rápido, atajos) |
+| `drops.js` | Aviso de objetos |
 | `client-hub.js`, `client-hub.css`, `hub-window.html` | El BB Hub |
 | `rtt.js` | Medición del ping |
 | `autoclick.cs`, `autoclick.ps1` | El autoclick |

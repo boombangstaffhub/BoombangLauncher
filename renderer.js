@@ -262,6 +262,17 @@ $('checkUpdateBtn').onclick=checkUpdates;
 window.bb.update.onProgress(step=>{ if(updating) $('updateStatus').textContent=step; });
 window.bb.update.onAvailable(showUpdate);
 
+// ------------------------------------------------------------------ drop alert chime (when the game itself is muted)
+let chimeCtx=null;
+function playChime(volume){
+  const v=Math.max(0,Math.min(100,Number(volume)||0))/100; if(!v) return;
+  try{ chimeCtx=chimeCtx||new (window.AudioContext||window.webkitAudioContext)(); if(chimeCtx.state==='suspended') chimeCtx.resume().catch(()=>{});
+    const now=chimeCtx.currentTime;
+    for(const [f,at] of [[784,0],[1175,0.13]]){ const o=chimeCtx.createOscillator(),g=chimeCtx.createGain(); o.type='sine'; o.frequency.value=f; g.gain.setValueAtTime(0.0001,now+at); g.gain.exponentialRampToValueAtTime(0.22*v,now+at+0.012); g.gain.exponentialRampToValueAtTime(0.0001,now+at+0.55); o.connect(g).connect(chimeCtx.destination); o.start(now+at); o.stop(now+at+0.6); }
+  }catch(_){}
+}
+if(window.bb.alerts) window.bb.alerts.onChime(playChime);
+
 // ------------------------------------------------------------------ boot
 async function load(){
   settings = await window.bb.settings.get();

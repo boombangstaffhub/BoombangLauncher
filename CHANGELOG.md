@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.3.0
+
+- Nueva pestaña **Avisos** en el BB Hub: suena un aviso suave cuando cae un objeto que hayas enseñado al launcher, y el botón del juego parpadea en la barra de tareas si estás en otra ventana. Los objetos se reconocen por su imagen, no por el color, así que funciona con lluvia, niebla o sombras. Solo avisa: no recoge nada ni mueve el ratón.
+
 ## 1.2.0
 
 - Nueva pestaña **Autoclick** en el BB Hub: activarlo, la velocidad y las teclas, todo en un sitio.

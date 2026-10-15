@@ -919,6 +919,14 @@ const smartbar = require('./smartbar').create({
 });
 window.__BB_SMARTBAR__ = smartbar;   // used by the in-client BB Hub
 
+// Aviso de objetos: a soft chime when an object you taught it appears (drops.js)
+const drops = require('./drops').create({
+  ipcRenderer,
+  getProfileId: () => profileId,
+  notice: message => openClientNotice(message),
+  isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)
+});
+
 function handleLauncherCommand(command) {
   if (!command) return;
   if (command.type === 'settings') applyRemoteSettings(command.settings);
@@ -928,6 +936,7 @@ function handleLauncherCommand(command) {
   if (command.type === 'client-visual') applyClientVisualSettings(command.payload || {});
   if (command.type === 'hub') { try { if (typeof window.__BB_HUB_OPEN_TAB__ === 'function') window.__BB_HUB_OPEN_TAB__(command.tab || 'home'); } catch (_) {} }
   smartbar.handleCommand(command);   // chat-shortcut, smartbar-learn, smartbar-upper, smartbar-force
+  drops.handleCommand(command);      // drop-alert-config, drop-alert-learn, drop-alert-test
 }
 
 // Commands from the separate control panel are delivered by the main process
@@ -964,6 +973,7 @@ async function installInnerGameStyle() {
   try { document.getElementById('__bb_open_panel')?.remove(); } catch (_) {}
   installClientHub();
   smartbar.start();
+  drops.start();
   installStageTransformGuard();
   renderStatusHud();
   clearInterval(statusTimer);
