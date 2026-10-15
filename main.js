@@ -732,7 +732,7 @@ ipcMain.handle('alerts:learn', async (_e, profileId) => {
 const TEMPLATE_DIR = path.join(DATA_ROOT, 'drop-templates');
 const templateFile = id => path.join(TEMPLATE_DIR, `${id}.png`);
 const visCache = new Map();             // id -> prepared template
-const visHigh = new Map();              // `${profile}:${id}` -> currently matched (rings only on the way up)
+const visDetector = visual.createDetector();   // learns each room's normal score and rings on a clear jump
 const visLastRing = new Map();          // profile -> time of last chime
 const visScores = new Map();            // profile -> { at, ok, scores: { id: best score } }  (shown live in the Hub)
 let visWorker = null, visTimer = null, visBusy = false, visJob = 0;
@@ -795,6 +795,7 @@ function ringFromMain(profileId, label, volume) {
     try { game.flashFrame(true); if (!game.__bbFlashing) { game.__bbFlashing = true; game.once('focus', () => { game.__bbFlashing = false; try { game.flashFrame(false); } catch (_) {} }); } } catch (_) {}
   }
   if (game.webContents.isAudioMuted()) notifyLauncher('alerts:chime', volume);
+  try { fs.appendFileSync(VIS_LOG, `${new Date().toLocaleTimeString('es-ES')} >>> AVISO: ${label}\n`); } catch (_) {}
   sendClientCommand(profileId, { type: 'drop-alert-ring', label, volume, sound: !game.webContents.isAudioMuted() }).catch(() => {});
   return true;
 }
@@ -804,33 +805,54 @@ async function visualTick() {
   const tpls = cfg.items.filter(i => i.type === 'visual').map(i => ({ id: i.id, label: i.label, t: loadTemplate(i.id) })).filter(x => x.t);
   if (!cfg.enabled || !tpls.length) return;
   visBusy = true;
-  const thr = visual.THRESHOLDS[cfg.sensitivity] || visual.THRESHOLDS.media;
   try {
     for (const [id, game] of games) {
       if (!game || game.isDestroyed()) continue;
       // Also works with the window minimised or behind others: the page is asked for a frame without showing it.
       let img = null;
-      try { img = await game.webContents.capturePage(undefined, { stayHidden: true }); } catch (_) { img = null; }
-      if ((!img || img.isEmpty()) && !game.isMinimized()) { try { img = await game.webContents.capturePage(); } catch (_) { img = null; } }
+      // Visible (even behind other windows): normal capture. Minimised: ask the page for a frame without showing it.
+      try { img = game.isMinimized() ? await game.webContents.capturePage(undefined, { stayHidden: true }) : await game.webContents.capturePage(); } catch (_) { img = null; }
       if (!img || img.isEmpty()) {
         // Can't see the game right now: forget what was on screen, so the next object rings even if it looks the same.
-        for (const t of tpls) visHigh.set(`${id}:${t.id}`, false);
-        visScores.set(id, { at: Date.now(), ok: false, scores: {} });
+        for (const t of tpls) visDetector.reset(`${id}:${t.id}`);
+        visScores.set(id, { at: Date.now(), ok: false, scores: {}, need: {} });
         continue;
       }
-      const { width, height } = img.getSize();
-      const frame = visual.edges(visual.grayDown(img.toBitmap(), width, height));
+      let { width, height } = img.getSize();
+      let gray = visual.grayDown(img.toBitmap(), width, height);
+      // Pictures of objects are in real screen pixels; if this capture came at another scale, bring it to that scale.
+      try {
+        const b = game.getContentBounds(), sf = electronScreen.getDisplayMatching(b).scaleFactor || 1;
+        const ratio = (b.width * sf) / width;
+        if (b.width > 50 && Math.abs(ratio - 1) > 0.05 && ratio > 0.4 && ratio < 3) gray = visual.resize(gray, ratio);
+      } catch (_) {}
+      const frame = visual.edges(gray);
       const results = await runMatch(frame, tpls);
       const best = {};
       for (const r of results) if (!(r.id in best) || r.score > best[r.id]) best[r.id] = r.score;   // best of the 3 sizes
-      visScores.set(id, { at: Date.now(), ok: true, scores: best });
+      const need = {};
       for (const [tid, score] of Object.entries(best)) {
-        const key = `${id}:${tid}`, was = visHigh.get(key) === true;
-        if (score >= thr && !was) { const t = tpls.find(x => x.id === tid); if (ringFromMain(id, t ? t.label : 'Objeto', cfg.volume)) visHigh.set(key, true); }
-        else if (score < visual.REARM && was) visHigh.set(key, false);
+        const key = `${id}:${tid}`;
+        const d = visDetector.update(key, score, cfg.sensitivity);
+        need[tid] = d.need;
+        if (d.fire) { const t = tpls.find(x => x.id === tid); if (ringFromMain(id, t ? t.label : 'Objeto', cfg.volume)) visDetector.setHigh(key); }
       }
+      visScores.set(id, { at: Date.now(), ok: true, scores: best, need });
+      logVisual(id, best, need, tpls, width, height);
     }
   } finally { visBusy = false; }
+}
+// Small log (avisos-log.txt in the data folder) so a missed or false alert can be looked at afterwards.
+const VIS_LOG = path.join(DATA_ROOT, 'avisos-log.txt');
+function logVisual(profileId, best, need, tpls, w, h) {
+  try {
+    const name = (readProfiles().find(p => p.id === profileId) || {}).name || profileId;
+    const parts = tpls.map(t => `${t.label}=${Math.round((best[t.id] || 0) * 100)}/${Math.round((need[t.id] || 0) * 100)}`);
+    const line = `${new Date().toLocaleTimeString('es-ES')} ${name} [${w}x${h}] ${parts.join(' ')}\n`;
+    let size = 0; try { size = fs.statSync(VIS_LOG).size; } catch (_) {}
+    if (size > 400 * 1024) fs.renameSync(VIS_LOG, VIS_LOG.replace(/\.txt$/, '-anterior.txt'));
+    fs.appendFileSync(VIS_LOG, line);
+  } catch (_) {}
 }
 function syncVisualWatch() {
   const cfg = dropAlertConfig();
@@ -857,7 +879,7 @@ ipcMain.handle('alerts:add-image', (_e, dataUrl) => {
 ipcMain.handle('alerts:scores', (_e, profileId) => {
   const cfg = dropAlertConfig();
   const v = visScores.get(String(profileId || ''));
-  return { threshold: visual.THRESHOLDS[cfg.sensitivity] || visual.THRESHOLDS.media, watching: Boolean(visTimer), ...(v || { at: 0, ok: false, scores: {} }) };
+  return { watching: Boolean(visTimer) && cfg.enabled, ...(v || { at: 0, ok: false, scores: {}, need: {} }) };
 });
 ipcMain.handle('alerts:template', (_e, id) => {
   if (!/^[a-z0-9]{6,24}$/.test(String(id || ''))) return '';

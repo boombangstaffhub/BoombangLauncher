@@ -5,8 +5,12 @@
 // colours are not used at all. Everything runs in a background thread, about once per second, at 1/4 size.
 
 const SCALE = 4;                                   // work at 1/4 size: light on the CPU, still enough detail
-const THRESHOLDS = { alta: 0.62, media: 0.68, baja: 0.75 };   // "sensibilidad" in the Hub
-const REARM = 0.5;                                 // must drop below this before it can ring again for that object
+// Every room looks different, so there is no fixed "this is the object" number. The detector learns what the score
+// normally is in the room you are in (last minute) and rings when it JUMPS above that.
+const JUMP = { alta: 0.08, media: 0.12, baja: 0.17 };   // "sensibilidad" in the Hub: how big the jump must be
+const ABS_MIN = 0.55;                              // never ring below this, whatever the room
+const START_ABS = 0.8;                             // first seconds in a room (no history yet): only a clear match
+const HISTORY = 60;                                // ~1 minute of looks (1 per second)
 
 // BGRA (Electron's NativeImage.toBitmap) or RGBA -> grey, averaged down by `f` in both directions.
 function grayDown(buf, w, h, f = SCALE, order = 'bgra') {
@@ -41,7 +45,15 @@ function edges(img) {
       out[i] = Math.sqrt(gx * gx + gy * gy);
     }
   }
-  return { data: out, w, h };
+  // Soften the outline a little (3x3): a few pixels of floating / animation or a slightly different spot still match.
+  const soft = new Float32Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      soft[i] = (out[i - w - 1] + out[i - w] + out[i - w + 1] + out[i - 1] + out[i] + out[i + 1] + out[i + w - 1] + out[i + w] + out[i + w + 1]) / 9;
+    }
+  }
+  return { data: soft, w, h };
 }
 
 function prepTemplate(img) {
@@ -101,8 +113,8 @@ function bestMatch(frame, t) {
   for (let y = 0; y + h <= H; y += 2) {
     for (let x = 0; x + w <= W; x += 2) {
       const sc = at(x, y);
-      if (tops.length < 4 || sc > tops[tops.length - 1].s) {
-        tops.push({ s: sc, x, y }); tops.sort((p, q) => q.s - p.s); if (tops.length > 4) tops.pop();
+      if (tops.length < 8 || sc > tops[tops.length - 1].s) {
+        tops.push({ s: sc, x, y }); tops.sort((p, q) => q.s - p.s); if (tops.length > 8) tops.pop();
       }
     }
   }
@@ -117,6 +129,30 @@ function bestMatch(frame, t) {
   return { score: best, x: bx, y: by };
 }
 
+function percentile(arr, p) { const a = [...arr].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(p * a.length))]; }
+function createDetector() {
+  const hist = new Map(), high = new Map();         // key -> recent scores without the object / key -> time it went high
+  return {
+    update(key, score, sensitivity, now = Date.now()) {
+      const h = hist.get(key) || [];
+      const base = h.length >= 5 ? percentile(h, 0.75) : null;
+      const jump = JUMP[sensitivity] || JUMP.media;
+      const need = base === null ? START_ABS : Math.max(ABS_MIN, base + jump);
+      const since = high.get(key);
+      let fire = false;
+      if (since === undefined) fire = score >= need;
+      else if (score < (base === null ? START_ABS - 0.1 : base + jump / 2)) high.delete(key);    // object gone: ready again
+      // Remember the room without the object. If something stays "high" for half a minute it is part of the room now.
+      if (since === undefined && !fire) { h.push(score); if (h.length > HISTORY) h.shift(); hist.set(key, h); }
+      else if (since !== undefined && now - since > 30000) { hist.set(key, new Array(10).fill(score)); high.delete(key); }
+      return { fire, need, base };
+    },
+    setHigh(key, now = Date.now()) { high.set(key, now); },
+    reset(key) { high.delete(key); },
+    forget(key) { high.delete(key); hist.delete(key); }
+  };
+}
+
 // Source of the background thread (worker_threads, eval: true, so it also works from inside the packaged app).
 const WORKER_SOURCE = `
 const { parentPort } = require('worker_threads');
@@ -127,4 +163,4 @@ parentPort.on('message', msg => {
   parentPort.postMessage({ job: msg.job, results: out });
 });`;
 
-module.exports = { SCALE, THRESHOLDS, REARM, VARIANT_SCALES, grayDown, edges, resize, prepTemplate, prepVariants, bestMatch, WORKER_SOURCE };
+module.exports = { SCALE, JUMP, ABS_MIN, START_ABS, VARIANT_SCALES, createDetector, percentile, grayDown, edges, resize, prepTemplate, prepVariants, bestMatch, WORKER_SOURCE };
