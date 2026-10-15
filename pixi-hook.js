@@ -50,8 +50,42 @@ function pixiHookMain() {
     }
   }
 
-  // The name of the picture a sprite shows. For animated sprites, the first picture of the animation.
+  // BoomBang gives its pictures random names every session ("blob:..."), so a name can't be remembered.
+  // Instead we take a tiny 16x16 fingerprint of the object's OWN picture (the one stored in the game, not the screen):
+  // the same object always gives the same fingerprint, whatever the weather, fog or lighting on screen.
+  const fpCache = new WeakMap();
+  let fpCanvas = null, fpCtx = null;
+  function fingerprint(t) {
+    if (!t || (typeof t !== 'object')) return '';
+    if (fpCache.has(t)) return fpCache.get(t);
+    let k = '';
+    try {
+      const src = t.source || t.baseTexture;
+      let res = src && src.resource;
+      if (res && res.source && !res.width) res = res.source;                   // Pixi v7 resource wrapper
+      const rw = res && (res.width || res.videoWidth || res.naturalWidth), rh = res && (res.height || res.videoHeight || res.naturalHeight);
+      if (res && rw && rh) {
+        const f = t.frame || t._frame || { x: 0, y: 0, width: rw, height: rh };
+        if (!fpCanvas) { fpCanvas = document.createElement('canvas'); fpCanvas.width = fpCanvas.height = 16; fpCtx = fpCanvas.getContext('2d', { willReadFrequently: true }); }
+        fpCtx.imageSmoothingEnabled = false;
+        fpCtx.clearRect(0, 0, 16, 16);
+        fpCtx.drawImage(res, f.x, f.y, f.width, f.height, 0, 0, 16, 16);
+        const d = fpCtx.getImageData(0, 0, 16, 16).data;
+        let h1 = 5381, h2 = 52711, ink = 0;
+        for (let i = 0; i < d.length; i++) { const v = d[i] >> 3; h1 = ((h1 << 5) + h1 + v) | 0; h2 = ((h2 << 5) + h2) ^ v; if (i % 4 === 3 && d[i] > 16) ink++; }
+        if (ink >= 6) k = `px:${Math.round(f.width)}x${Math.round(f.height)}:${(h1 >>> 0).toString(36)}${((h2 | 0) >>> 0).toString(36)}`;
+      }
+    } catch (_) { k = ''; }
+    fpCache.set(t, k);
+    return k;
+  }
+  // The name of the picture a sprite shows (or its fingerprint when the game gives it no stable name).
   function texName(t) {
+    const n = rawName(t);
+    if (n && !/^(blob:|data:)/i.test(n)) return n;
+    return fingerprint(t);
+  }
+  function rawName(t) {
     if (!t) return '';
     try {
       const ids = t.textureCacheIds;
@@ -72,7 +106,17 @@ function pixiHookMain() {
     } catch (_) { return ''; }
   }
   const plain = k => String(k).replace(/^anim:/, '');
-  const family = k => { const m = /^(.*)[/\\][^/\\]*$/.exec(plain(k)); return m ? m[1] + '/' : ''; };   // folder of the picture
+  // Where in the game's scene the object lives ("layer"): objects that fall are usually all in the same layer.
+  function layerOf(s) {
+    const parts = [];
+    try {
+      for (let o = s.parent; o && o !== H.stage && parts.length < 12; o = o.parent) {
+        const p = o.parent; const i = p && p.children ? p.children.indexOf(o) : -1;
+        parts.unshift(o.label ? String(o.label).slice(0, 30) : (o.name ? String(o.name).slice(0, 30) : '#' + i));
+      }
+    } catch (_) {}
+    return 'layer:' + parts.join('/');
+  }
   const shown = o => o.visible !== false && o.renderable !== false && !(typeof o.worldAlpha === 'number' && o.worldAlpha <= 0.02) && !(typeof o.alpha === 'number' && o.alpha <= 0.02);
   // Every visible sprite, in drawing order (the last one is on top).
   function sprites(limit = 12000) {
@@ -96,6 +140,19 @@ function pixiHookMain() {
     const sw = (H.renderer && H.renderer.screen && H.renderer.screen.width) || c.width, sh = (H.renderer && H.renderer.screen && H.renderer.screen.height) || c.height;
     return { x: (x - r.left) * sw / r.width, y: (y - r.top) * sh / r.height };
   }
+  // Small picture of what was learned, so you can see it in the Hub.
+  function thumbOf(sp) {
+    const t = sp.textures && sp.textures.length ? (sp.textures[0].texture || sp.textures[0]) : sp.texture;
+    const src = t && (t.source || t.baseTexture); let res = src && src.resource;
+    if (res && res.source && !res.width) res = res.source;
+    if (!res) return '';
+    const f = t.frame || t._frame || { x: 0, y: 0, width: res.width, height: res.height };
+    const c = document.createElement('canvas'), k = 48 / Math.max(f.width, f.height);
+    c.width = Math.max(1, Math.round(f.width * k)); c.height = Math.max(1, Math.round(f.height * k));
+    c.getContext('2d').drawImage(res, f.x, f.y, f.width, f.height, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/png');
+    return url.length < 12000 ? url : '';
+  }
   function boundsOf(o) { try { const b = o.getBounds(); return { x: b.x, y: b.y, w: b.width, h: b.height }; } catch (_) { return null; } }
 
   function tick() {
@@ -107,10 +164,12 @@ function pixiHookMain() {
     const now = new Set(); let hit = null;
     for (const s of sprites()) {
       const k = keyOf(s); if (!k) continue;
-      const exact = H.keys.includes(k), fam = !exact && H.fam.some(f => plain(k).startsWith(f));
+      const exact = H.keys.includes(k);
+      const lay = !exact && H.fam.length ? layerOf(s) : '';
+      const fam = !exact && lay && H.fam.includes(lay);
       if (!exact && !fam) continue;
       now.add(s);
-      if (H.primed && !H.prev.has(s) && !hit) hit = { key: exact ? k : H.fam.find(f => plain(k).startsWith(f)), name: k };
+      if (H.primed && !H.prev.has(s) && !hit) hit = { key: exact ? k : lay, name: k };
     }
     H.prev = now; H.primed = true;
     if (hit) emit('hit', hit);
@@ -130,15 +189,22 @@ function pixiHookMain() {
         for (const s of sprites()) {                       // last match = the one drawn on top
           const k = keyOf(s); if (!k) continue;
           const b = boundsOf(s); if (!b || b.w < 6 || b.h < 6 || b.w > 320 || b.h > 320) continue;
-          if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) pick = { key: k, family: family(k), w: Math.round(b.w), h: Math.round(b.h) };
+          if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) pick = { key: k, family: layerOf(s), w: Math.round(b.w), h: Math.round(b.h), sprite: s };
         }
       }
-      emit('learned', { ok: Boolean(pick), ...(pick || {}), stage: Boolean(H.stage) });
+      let thumb = '';
+      if (pick) { try { thumb = thumbOf(pick.sprite); } catch (_) {} delete pick.sprite; }
+      emit('learned', { ok: Boolean(pick), ...(pick || {}), thumb, stage: Boolean(H.stage) });
     } else if (m.type === 'probe') {
       if (!H.stage) find();
-      const count = {}; let total = 0;
-      for (const s of sprites()) { const k = keyOf(s) || '(sin nombre)'; count[k] = (count[k] || 0) + 1; total++; }
-      const list = Object.entries(count).sort((a, b) => b[1] - a[1]).slice(0, 150).map(([k, n]) => `${n}x ${k}`);
+      const rows = []; let total = 0;
+      for (const s of sprites()) {
+        total++;
+        const b = boundsOf(s) || { x: 0, y: 0, w: 0, h: 0 };
+        let raw = ''; try { raw = rawName(s.textures && s.textures.length ? (s.textures[0].texture || s.textures[0]) : s.texture); } catch (_) {}
+        rows.push(`${(keyOf(s) || '(sin huella)').padEnd(34)} ${String(Math.round(b.w)).padStart(4)}x${String(Math.round(b.h)).padEnd(4)} en ${Math.round(b.x)},${Math.round(b.y)}  ${layerOf(s)}  ${s.constructor && s.constructor.name || ''} ${raw && /^blob:/.test(raw) ? 'blob' : raw.slice(0, 40)}`);
+      }
+      const list = rows.slice(0, 300);
       let version = ''; try { version = (H.P && H.P.VERSION) || (H.renderer && H.renderer.constructor && H.renderer.constructor.name) || ''; } catch (_) {}
       emit('probe', { ok: Boolean(H.stage), pixi: Boolean(H.P), how: H.how, version: String(version), total, list });
     }

@@ -689,7 +689,7 @@ ipcMain.handle('alerts:save', (_e, patch) => {
   if (p.addItem && typeof p.addItem === 'object') {
     if (p.addItem.type === 'pixi') {
       const key = String(p.addItem.key || '');
-      if (key && !next.items.some(i => i.type === 'pixi' && i.key === key)) next.items.push({ type: 'pixi', key, family: String(p.addItem.family || ''), label: prettyName(key) || `Objeto ${next.items.length + 1}` });
+      if (key && !next.items.some(i => i.type === 'pixi' && i.key === key)) next.items.push({ type: 'pixi', key, family: String(p.addItem.family || ''), thumb: String(p.addItem.thumb || ''), label: (!/^(anim:)?px:/.test(key) && prettyName(key)) || `Objeto ${next.items.length + 1}` });
     } else if (!next.items.some(i => i.src === p.addItem.src)) next.items.push({ src: p.addItem.src, cls: p.addItem.cls, label: `Objeto ${next.items.length + 1}` });
     next.enabled = true;                           // teaching an object turns the alert on
   }

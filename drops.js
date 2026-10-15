@@ -70,7 +70,8 @@ function normalizeConfig(raw) {
       if (!key || seen.has('p:' + key)) continue;
       seen.add('p:' + key);
       const fam = String(it.family || '').slice(0, 300);
-      items.push({ type: 'pixi', key, family: fam, wide: Boolean(it.wide && fam), label: String(it.label || '').trim().slice(0, 24) || `Objeto ${items.length + 1}` });
+      const thumb = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(String(it.thumb || '')) && String(it.thumb).length < 12000 ? String(it.thumb) : '';
+      items.push({ type: 'pixi', key, family: fam, wide: Boolean(it.wide && fam), thumb, label: String(it.label || '').trim().slice(0, 24) || `Objeto ${items.length + 1}` });
       if (items.length >= MAX_ITEMS) break;
       continue;
     }
@@ -257,7 +258,7 @@ function create(api) {
       if (px && px.ok && px.key) {
         setTimeout(stopLearning, 400);
         try {
-          const saved = await ipc.invoke('alerts:save', { addItem: { type: 'pixi', key: px.key, family: px.family } });
+          const saved = await ipc.invoke('alerts:save', { addItem: { type: 'pixi', key: px.key, family: px.family, thumb: px.thumb } });
           if (saved) setConfig(saved);
           api.notice('✓ Objeto aprendido. Sonará cuando vuelva a aparecer.');
         } catch (_) { api.notice('No se pudo guardar el objeto.'); }
