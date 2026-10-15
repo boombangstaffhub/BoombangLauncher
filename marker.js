@@ -11,12 +11,22 @@ const COLORS = ['#ff4d67', '#ffd34d', '#55d9ff', '#54df94', '#ffffff'];
 const SIZES = { s: 3, m: 6, l: 11 };
 const STAMPS = { wrong: { char: '✕', bg: '#e25555' }, safe: { char: '✓', bg: '#36c47f' }, maybe: { char: '?', bg: '#f0b43c' }, target: { char: '◎', bg: '#4a9bff' } };
 const TOOLS = ['mouse', 'pen', 'wrong', 'safe', 'maybe', 'target'];
+const ZONE_WIDTH = { s: 90, m: 127, l: 165 };        // "Marcar zona" uses the vine picture (assets/liana.png), sized with S/M/L
+
+// The vine picture, read once from the app folder (also works from inside the installed app).
+let zoneUrl = null;
+function zoneImageUrl() {
+  if (zoneUrl !== null) return zoneUrl;
+  zoneUrl = '';
+  try { zoneUrl = 'data:image/png;base64,' + require('fs').readFileSync(require('path').join(__dirname, 'assets', 'liana.png')).toString('base64'); } catch (_) {}
+  return zoneUrl;
+}
 
 function create(api) {
   // api: { isGameFrame(), notice(msg), isTyping() }
   let host = null, bar = null, canvas = null, ctx = null, stage = null;
   let open = false, tool = 'mouse', lastDraw = 'pen', color = COLORS[0], size = 'm', shiftDraw = false;
-  let items = [], current = null, ro = null;
+  let items = [], current = null, ro = null, zoneImg = null;
   const inGame = () => (typeof api.isGameFrame === 'function' ? !!api.isGameFrame() : true);
   const store = {
     get(k, d) { try { const v = localStorage.getItem('bbMarker:' + k); return v === null ? d : JSON.parse(v); } catch (_) { return d; } },
@@ -41,7 +51,7 @@ function create(api) {
         <button data-tool="wrong" class="mk-stamp" style="--c:${STAMPS.wrong.bg}" title="Marcar camino malo">✕</button>
         <button data-tool="safe" class="mk-stamp" style="--c:${STAMPS.safe.bg}" title="Marcar camino bueno">✓</button>
         <button data-tool="maybe" class="mk-stamp" style="--c:${STAMPS.maybe.bg}" title="Marcar duda">?</button>
-        <button data-tool="target" class="mk-stamp" style="--c:${STAMPS.target.bg}" title="Marcar zona">◎</button>
+        <button data-tool="target" class="mk-stamp mk-zone" style="--c:${STAMPS.target.bg}" title="Marcar zona (liana)">${zoneImageUrl() ? `<img src="${zoneImageUrl()}" alt="">` : '◎'}</button>
         <i class="mk-sep"></i>
         ${COLORS.map(c => `<button class="mk-color" data-color="${c}" style="--c:${c}" title="Color"></button>`).join('')}
         <i class="mk-sep"></i>
@@ -69,6 +79,8 @@ function create(api) {
       #__bb_marker .mk-stamp.on{background:var(--c);color:#fff;border-color:#fff}
       #__bb_marker .mk-color{width:20px;height:20px;border-radius:50%;background:var(--c);border:2px solid rgba(0,0,0,.35)}
       #__bb_marker .mk-color.on{background:var(--c);border-color:#fff;box-shadow:0 0 0 2px var(--c)}
+      #__bb_marker .mk-zone img{width:24px;height:auto;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+      #__bb_marker .mk-zone.on{background:rgba(255,255,255,.18);border-color:#fff}
       #__bb_marker .mk-size b{display:block;width:var(--d);height:var(--d);border-radius:50%;background:#eee}
       #__bb_marker .mk-sep{width:1px;height:20px;background:rgba(255,255,255,.14);margin:0 2px}
       #__bb_marker .mk-mode{font:800 10px "Segoe UI",system-ui;color:#c9bfff;margin-left:4px;min-width:62px}
@@ -77,6 +89,7 @@ function create(api) {
     if (getComputedStyle(stage).position === 'static') stage.style.position = 'relative';
     stage.appendChild(host);
     canvas = host.querySelector('.mk-canvas'); ctx = canvas.getContext('2d');
+    if (zoneImageUrl()) { zoneImg = new window.Image(); zoneImg.onload = () => redraw(); zoneImg.src = zoneImageUrl(); }
     bar = host.querySelector('.mk-bar');
     const pos = store.get('pos', null);
     if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) placeBar(pos.x, pos.y);
@@ -87,7 +100,7 @@ function create(api) {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.tool) setTool(b.dataset.tool);
       else if (b.dataset.color) { color = b.dataset.color; store.set('color', color); setTool('pen'); }   // a colour means: draw
-      else if (b.dataset.size) { size = b.dataset.size; store.set('size', size); setTool('pen'); }
+      else if (b.dataset.size) { size = b.dataset.size; store.set('size', size); if (tool === 'mouse') setTool('pen'); else refresh(); }   // also sizes the vine
       else if (b.dataset.act === 'undo') undo();
       else if (b.dataset.act === 'clear') clear();
       else if (b.dataset.act === 'close') close();
@@ -131,7 +144,7 @@ function create(api) {
     e.preventDefault(); e.stopPropagation();
     const p = rel(e);
     const t = shiftDraw && tool === 'mouse' ? 'pen' : tool;
-    if (STAMPS[t]) { items.push({ type: 'stamp', kind: t, x: p.x, y: p.y }); redraw(); return; }
+    if (STAMPS[t]) { items.push({ type: 'stamp', kind: t, x: p.x, y: p.y, size }); redraw(); return; }
     current = { type: 'stroke', color, w: SIZES[size] || 6, pts: [p] };
     items.push(current);
     try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
@@ -167,6 +180,11 @@ function create(api) {
         it.pts.forEach((p, i) => (i ? ctx.lineTo(p.x * W, p.y * H) : ctx.moveTo(p.x * W, p.y * H)));
         if (it.pts.length === 1) ctx.lineTo(it.pts[0].x * W + 0.1, it.pts[0].y * H + 0.1);
         ctx.stroke(); ctx.shadowBlur = 0;
+      } else if (it.type === 'stamp' && it.kind === 'target' && zoneImg && zoneImg.complete && zoneImg.naturalWidth) {
+        const w = (ZONE_WIDTH[it.size] || ZONE_WIDTH.m) * k, h = w * zoneImg.naturalHeight / zoneImg.naturalWidth;
+        ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 4 * k;
+        ctx.drawImage(zoneImg, it.x * W - w / 2, it.y * H - h / 2, w, h);
+        ctx.shadowBlur = 0;
       } else if (it.type === 'stamp') {
         const s = STAMPS[it.kind] || STAMPS.maybe, x = it.x * W, y = it.y * H, r = 14 * k;
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -188,7 +206,7 @@ function create(api) {
     for (const b of bar.querySelectorAll('[data-tool]')) b.classList.toggle('on', b.dataset.tool === shown);
     for (const b of bar.querySelectorAll('[data-color]')) b.classList.toggle('on', b.dataset.color === color);
     for (const b of bar.querySelectorAll('[data-size]')) b.classList.toggle('on', b.dataset.size === size);
-    const label = { mouse: 'RATÓN', pen: 'LÁPIZ', wrong: 'MARCA ✕', safe: 'MARCA ✓', maybe: 'MARCA ?', target: 'ZONA ◎' }[shown] || '';
+    const label = { mouse: 'RATÓN', pen: 'LÁPIZ', wrong: 'MARCA ✕', safe: 'MARCA ✓', maybe: 'MARCA ?', target: 'LIANA' }[shown] || '';
     bar.querySelector('.mk-mode').textContent = label;
   }
   function setTool(t) {

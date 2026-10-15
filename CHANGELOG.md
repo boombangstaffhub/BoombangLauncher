@@ -4,6 +4,7 @@
 
 - **Screen Marker de Sendero Oculto rehecho**: una sola barra dentro del juego (se arrastra desde ⋮⋮) con lápiz, marcas ✕ ✓ ? ◎, 5 colores, 3 grosores, deshacer y borrar.
 - Cambio rápido **lápiz ⇄ ratón** con clic derecho o la tecla Espacio; en modo ratón, mantén Shift para dibujar mientras la pulsas. Ctrl+Z deshace.
+- **Marcar zona** pone una liana (como las del juego) en vez de un círculo; su tamaño se elige con los botones de grosor.
 - Se abre desde el BB Hub → Minijuegos → Sendero Oculto.
 
 ## 1.3.0
