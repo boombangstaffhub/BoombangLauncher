@@ -2,6 +2,7 @@
 // running hidden inside BoomBang Launcher.
 //   F3  -> remember the current mouse position as the target
 //   F1  -> start clicking            F2 -> stop
+//   (the three keys can be changed in the BB Hub; the launcher passes them as virtual-key codes)
 //
 // What changed (the mouse stays free):
 //   * If the target is inside a BoomBang window of the launcher, the helper does NOT touch your mouse at all.
@@ -30,8 +31,8 @@ public static class BBAutoclick
     [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
 
     private const uint MOVE = 0x0001, LEFTDOWN = 0x0002, LEFTUP = 0x0004, ABSOLUTE = 0x8000, VIRTUALDESK = 0x4000;
-    private const int VK_F1 = 0x70, VK_F2 = 0x71, VK_F3 = 0x72;
-    private const int CLICKS = 6;
+    private static int vkStart = 0x70, vkStop = 0x71, vkSet = 0x72;   // F1, F2, F3 by default
+    private static int clicks = 6;                                     // clicks per tick (8 in "max" mode)
 
     private static Timer clickTimer, keyTimer, posTimer, parentTimer;
     private static bool hasTarget;
@@ -73,25 +74,25 @@ public static class BBAutoclick
             return;
         }
         POINT back; GetCursorPos(out back);
-        INPUT[] batch = new INPUT[2 + CLICKS * 2];
+        INPUT[] batch = new INPUT[2 + clicks * 2];
         int k = 0;
         batch[k++] = MoveTo(target);
-        for (int i = 0; i < CLICKS; i++) { batch[k++] = Mouse(LEFTDOWN, 0, 0); batch[k++] = Mouse(LEFTUP, 0, 0); }
+        for (int i = 0; i < clicks; i++) { batch[k++] = Mouse(LEFTDOWN, 0, 0); batch[k++] = Mouse(LEFTUP, 0, 0); }
         batch[k++] = MoveTo(back);
         SendInput((uint)batch.Length, batch, Marshal.SizeOf(typeof(INPUT)));   // one atomic burst
     }
 
-    // Timer2_Tick of the original: F1 starts, F2 stops
+    // Timer2_Tick of the original: start key (F1) starts, stop key (F2) stops
     private static void KeyTick(object sender, EventArgs e)
     {
-        if (Pressed(VK_F1) && !clickTimer.Enabled) { clickTimer.Start(); Console.Out.WriteLine("S 1"); Console.Out.Flush(); }
-        if (Pressed(VK_F2) && clickTimer.Enabled) { clickTimer.Stop(); Console.Out.WriteLine("S 0"); Console.Out.Flush(); }
+        if (Pressed(vkStart) && !clickTimer.Enabled) { clickTimer.Start(); Console.Out.WriteLine("S 1"); Console.Out.Flush(); }
+        if (Pressed(vkStop) && clickTimer.Enabled) { clickTimer.Stop(); Console.Out.WriteLine("S 0"); Console.Out.Flush(); }
     }
 
-    // Timer3_Tick of the original: F3 stores the mouse position
+    // Timer3_Tick of the original: position key (F3) stores the mouse position
     private static void PosTick(object sender, EventArgs e)
     {
-        if (!Pressed(VK_F3)) return;
+        if (!Pressed(vkSet)) return;
         POINT p; GetCursorPos(out p);
         if (!hasTarget || p.X != target.X || p.Y != target.Y) { target = p; hasTarget = true; Console.Out.WriteLine("T " + p.X + " " + p.Y); Console.Out.Flush(); }
     }
@@ -104,10 +105,14 @@ public static class BBAutoclick
         catch (ArgumentException) { Application.Exit(); }
     }
 
-    public static void Run(int launcherPid, int intervalMs)
+    private static int ValidKey(int vk, int fallback) { return vk > 0 && vk < 256 ? vk : fallback; }
+
+    public static void Run(int launcherPid, int intervalMs, int clicksPerTick, int startKey, int stopKey, int setKey)
     {
         try { SetProcessDPIAware(); } catch (Exception) { }     // real pixel coordinates on scaled screens (125%, 150%...)
         parentPid = launcherPid;
+        clicks = Math.Max(1, Math.Min(12, clicksPerTick));
+        vkStart = ValidKey(startKey, 0x70); vkStop = ValidKey(stopKey, 0x71); vkSet = ValidKey(setKey, 0x72);
         clickTimer = new Timer(); clickTimer.Interval = Math.Max(1, intervalMs); clickTimer.Tick += ClickTick;
         keyTimer = new Timer(); keyTimer.Interval = 1; keyTimer.Tick += KeyTick; keyTimer.Start();
         posTimer = new Timer(); posTimer.Interval = 1; posTimer.Tick += PosTick; posTimer.Start();

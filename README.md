@@ -15,7 +15,7 @@ Launcher de escritorio **no oficial** para jugar a [BoomBang](https://www.boomba
   - Ping real al servidor del juego.
   - Atajos de teclado configurables para cada botón.
 - **BB Hub**: panel para configurar la Smart Bar, calibrar el upper, copiar la configuración a tus otros perfiles y ajustar la vista del cliente.
-- **Autoclick integrado** (desactivado por defecto): F3 guarda la posición del ratón, F1 empieza y F2 para. Dentro de BoomBang los clics van directos al juego y **tu ratón queda libre**.
+- **Autoclick integrado** (desactivado por defecto): F3 guarda la posición del ratón, F1 empieza y F2 para (teclas y velocidad configurables en el BB Hub). Dentro de BoomBang los clics van directos al juego y **tu ratón queda libre**.
 - **7 diseños animados** para el launcher: Galaxy Crystal, Aurora Boreal, Inferno, Océano, Sakura, Neon Retro y Halloween.
 
 ![BB Hub](docs/hub-smartbar.jpg)
@@ -61,19 +61,22 @@ O descarga el código como ZIP y haz doble clic en `Iniciar.bat`. Para generar e
 | Colores de upper | Ctrl + Shift + 1 … 4 |
 | Mostrar / ocultar la Smart Bar | Ctrl + Shift + B |
 
-Todos se pueden cambiar en el Hub. F1, F2 y F3 quedan reservadas para el autoclick.
+Todos se pueden cambiar en el Hub. Las teclas del autoclick (F1, F2 y F3 por defecto) quedan reservadas para él.
 
 ### Autoclick
 
-Actívalo en **Ajustes → Autoclick**. Después:
+Actívalo en **Ajustes → Autoclick** del launcher o en el **BB Hub → Autoclick**. Por defecto:
 
 - **F3**: guarda la posición actual del ratón.
-- **F1**: empieza (6 clics por vuelta en el punto guardado).
+- **F1**: empieza a hacer clics en el punto guardado.
 - **F2**: para.
 
-Si el PC se traba, sube el **Intervalo del autoclick** en Ajustes (1 ms es lo más rápido; 30–100 ms va bien en PCs más modestos).
+En el **BB Hub → Autoclick** puedes cambiar:
 
-Usa Windows PowerShell, que viene con Windows. Algunos antivirus pueden avisar la primera vez porque es un programa que hace clics; el código está en [`autoclick.cs`](autoclick.cs).
+- **Las teclas** de las tres acciones. Valen F1–F12, letras, números, Insert, Inicio, Re Pág, etc., y también la rueda o los botones laterales del ratón.
+- **La velocidad** (intervalo entre tandas de clics, de 1 a 1000 ms). **1 ms es el modo máximo** (8 clics por tanda); a partir de 2 ms hace 6 clics por tanda como el original. Si el PC se traba, súbelo a 30–100 ms.
+
+La configuración del autoclick es la misma para todos tus perfiles. Usa Windows PowerShell, que viene con Windows. Algunos antivirus pueden avisar la primera vez porque es un programa que hace clics; el código está en [`autoclick.cs`](autoclick.cs).
 
 ![Diseños](docs/disenos.jpg)
 

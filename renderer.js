@@ -198,22 +198,15 @@ async function saveProfile(){
 // ------------------------------------------------------------------ settings
 async function openSettings(){
   settings=await window.bb.settings.get();
-  $('setAutoLogin').checked=!!settings.autoLogin; $('setAutoclick').checked=settings.autoclickEnabled!==false; setIntervalInputs(settings.autoclickInterval); syncIntervalRow(); $('setHideLauncher').checked=!!settings.hideLauncherOnGameLaunch; $('setRememberSize').checked=!!settings.rememberWindowSize;
+  $('setAutoLogin').checked=!!settings.autoLogin; $('setAutoclick').checked=settings.autoclickEnabled!==false; $('setHideLauncher').checked=!!settings.hideLauncherOnGameLaunch; $('setRememberSize').checked=!!settings.rememberWindowSize;
   $('setServerCheck').checked=!!settings.checkServerOnStart; $('setStartWindows').checked=!!settings.startWithWindows; $('setMinimizeTray').checked=!!settings.minimizeToTray;
   $('setAutoUpdate').checked=settings.autoUpdateCheck!==false; $('updateCheckInfo').textContent=appVersion?`Tienes la V${appVersion}.`:'—';
   renderThemeGrid(); applyTheme(settings.theme);
   $('settingsModal').classList.remove('hidden');
 }
-function clampInterval(v){ const n=Math.round(Number(v)); return Number.isFinite(n)&&n>=1 ? Math.min(1000,n) : 1; }
-function setIntervalInputs(v){ const n=clampInterval(v); $('setAutoclickInterval').value=String(n); $('setAutoclickIntervalRange').value=String(Math.min(500,n)); }
-function syncIntervalRow(){ $('acIntervalRow').classList.toggle('off',!$('setAutoclick').checked); }
-$('setAutoclickIntervalRange').addEventListener('input',e=>{ $('setAutoclickInterval').value=e.target.value; });
-$('setAutoclickInterval').addEventListener('input',e=>{ const n=Math.round(Number(e.target.value)); if(Number.isFinite(n)&&n>=1) $('setAutoclickIntervalRange').value=String(Math.min(500,n)); });
-$('setAutoclickInterval').addEventListener('change',e=>setIntervalInputs(e.target.value));
-$('setAutoclick').addEventListener('change',syncIntervalRow);
 function closeSettings(){ $('settingsModal').classList.add('hidden'); }
 async function saveSettings(){
-  settings=await window.bb.settings.save({autoLogin:$('setAutoLogin').checked,autoclickEnabled:$('setAutoclick').checked,autoclickInterval:clampInterval($('setAutoclickInterval').value),hideLauncherOnGameLaunch:$('setHideLauncher').checked,rememberWindowSize:$('setRememberSize').checked,checkServerOnStart:$('setServerCheck').checked,startWithWindows:$('setStartWindows').checked,minimizeToTray:$('setMinimizeTray').checked,autoUpdateCheck:$('setAutoUpdate').checked,theme:$('setTheme').value});
+  settings=await window.bb.settings.save({autoLogin:$('setAutoLogin').checked,autoclickEnabled:$('setAutoclick').checked,hideLauncherOnGameLaunch:$('setHideLauncher').checked,rememberWindowSize:$('setRememberSize').checked,checkServerOnStart:$('setServerCheck').checked,startWithWindows:$('setStartWindows').checked,minimizeToTray:$('setMinimizeTray').checked,autoUpdateCheck:$('setAutoUpdate').checked,theme:$('setTheme').value});
   applyTheme(settings.theme); closeSettings(); toast('Ajustes guardados');
 }
 // ------------------------------------------------------------------ diagnostics / server

@@ -23,8 +23,8 @@
   async function detectGame(){try{const g=await ipcRenderer.invoke('client:game-context',profileId);currentGame=g||{id:'unknown',label:'No detectado',confidence:0};}catch(_){currentGame={id:'unknown',label:'No detectado',confidence:0};}if(currentGame.id!=='sendero'){await clientAction('game-assist',{action:'reset',gameId:currentGame.id||'unknown'});}return currentGame;}
   function toast(message){const el=root?.querySelector('.hub-toast');if(!el)return;el.textContent=String(message||'Listo.');el.classList.add('show');clearTimeout(el._timer);el._timer=setTimeout(()=>el.classList.remove('show'),1700);}
   function applyTheme(){if(!root||!data)return;root.className=`${open?'open ':''}theme-crystal${data.streamerMode?' hub-private':''}${data.dock==='left'?' dock-left':''}${clientSettings?.performanceMode?' perf-lite':''}`;const b=q('#__bb_hub_button');if(b)b.style.display=clientSettings?.cleanMode?'none':'grid';}
-  const tabDefs=[['home','⌂','Inicio'],['smartbar','✦','Smart Bar'],['games','🎮','Minijuegos'],['assist','🛠','Herramientas'],['tools','⚙','Cliente'],['performance','◈','Rendimiento'],['appearance','◐','Vista']];
-  function renderTabs(){tabs.innerHTML=tabDefs.map(([id,icon,label])=>`<button class="hub-tab ${tab===id?'active':''}" data-tab="${id}"><span class="ti">${icon}</span><span>${label}</span></button>`).join('');tabs.querySelectorAll('[data-tab]').forEach(b=>b.onclick=async()=>{tab=b.dataset.tab;if(tab==='games'||tab==='assist')await detectGame();render();});}
+  const tabDefs=[['home','⌂','Inicio'],['smartbar','✦','Smart Bar'],['autoclick','⊕','Autoclick'],['games','🎮','Minijuegos'],['assist','🛠','Herramientas'],['tools','⚙','Cliente'],['performance','◈','Rendimiento'],['appearance','◐','Vista']];
+  function renderTabs(){tabs.innerHTML=tabDefs.map(([id,icon,label])=>`<button class="hub-tab ${tab===id?'active':''}" data-tab="${id}"><span class="ti">${icon}</span><span>${label}</span></button>`).join('');tabs.querySelectorAll('[data-tab]').forEach(b=>b.onclick=async()=>{tab=b.dataset.tab;if(tab==='games'||tab==='assist')await detectGame();if(tab==='autoclick'||tab==='smartbar')acLoad();render();});}
   const actionButton=(label,action,cls='hub-btn')=>`<button class="${cls}" data-action="${esc(action)}">${label}</button>`;
   const gameCatalog=[
     {id:'sendero',label:'Sendero Oculto',icon:'🛤️',desc:'Screen Marker de lápiz libre para anotar caminos y zonas directamente sobre el tablero.',tool:'screen-marker'},
@@ -77,7 +77,7 @@
       const combo=hkCombo(e);if(!combo)return;
       const cur=hkNow();const clash=Object.keys(cur).find(k=>k!==action&&cur[k]===combo);
       if(clash){toast(`«${combo}» ya la usa: ${hkLabel(clash)}.`);return;}
-      if(/^F[123]$/.test(combo)){toast(`${combo} la usa el autoclick (F1 empieza, F2 para, F3 guarda posición). Elige otra.`);return;}
+      if(acKeysNow().includes(combo)){toast(`${combo} la usa el autoclick. Elige otra o cámbiala en la pestaña Autoclick.`);return;}
       stopHkCapture();
       const plain=!/(Ctrl|Alt|Meta)\+/.test(combo)&&!/(^|\+)F\d{1,2}$/.test(combo);
       setClientSetting('hotkeys',{...(clientSettings.hotkeys||{}),...cur,[action]:combo}).then(()=>toast(plain?`Atajo guardado: ${combo} (sin Ctrl/Alt no funciona mientras escribes en el chat)`:`Atajo guardado: ${combo}`));
@@ -113,11 +113,71 @@
     <div class="hub-section"><div class="hub-label">PING</div><div class="hub-row"><input id="pingHost" class="hub-input" value="${esc(clientSettings.pingHost||'144.217.195.55')}" placeholder="144.217.195.55"><button class="hub-btn" id="savePingHost">Guardar</button></div><div class="hub-small" style="margin-top:8px">Servidor al que se mide el ping de la barra (igual que <i>ping 144.217.195.55</i>).</div></div>
     <div class="hub-section"><div class="hub-label">COPIAR A OTROS PERFILES</div>${sbProfiles===null?'<div class="hub-small">Cargando perfiles…</div>':!sbProfiles.length?'<div class="hub-empty">No tienes otros perfiles en el launcher.</div>':`<div class="sb-intro">Copia esta configuración a tus otras cuentas para no repetirla.</div><div class="sb-copy-list">${sbProfiles.map(p=>`<label class="sb-copy"><input type="checkbox" data-copy-to="${esc(p.id)}" checked><span>${esc(p.name)}</span></label>`).join('')}</div><div class="sb-copy-parts"><label class="sb-copy"><input type="checkbox" id="copyBar" checked><span>Botones, atajos y ping</span></label><label class="sb-copy"><input type="checkbox" id="copyCalib" checked><span>Calibración del upper</span></label></div><div class="hub-row" style="margin-top:10px"><button class="hub-btn primary" id="copySettings">Copiar a los perfiles marcados</button></div><div class="hub-small" style="margin-top:8px">Si un perfil está abierto, se aplica al momento. La calibración solo sirve si la ventana del juego tiene un tamaño parecido.</div>`}</div>`;
   }
+  // ---------------------------------------------------------------- Autoclick (global: same for every profile)
+  let acState=null,acListener=null,acMouse=null,acTimer=null,acSaveTimer=null;
+  async function acLoad(){try{acState=await ipcRenderer.invoke('autoclick:get');}catch(_){acState=null;}if(tab==='autoclick')render();}
+  const acKeysNow=()=>acState&&acState.keys?Object.values(acState.keys):['F1','F2','F3'];
+  const AC_ROLES=[['set','Guardar posición','Pon el ratón donde quieras los clics y pulsa esta tecla.'],['start','Empezar','Empieza a hacer clics en la posición guardada.'],['stop','Parar','Deja de hacer clics.']];
+  const AC_NAMES={Mouse3:'Rueda (clic central)',Mouse4:'Botón lateral atrás',Mouse5:'Botón lateral adelante',ArrowLeft:'Flecha ←',ArrowUp:'Flecha ↑',ArrowRight:'Flecha →',ArrowDown:'Flecha ↓',PageUp:'Re Pág',PageDown:'Av Pág',Insert:'Insert',Delete:'Supr',Home:'Inicio',End:'Fin',Pause:'Pausa',ScrollLock:'Bloq Despl'};
+  const acKeyLabel=k=>AC_NAMES[k]||k;
+  const AC_PLAIN=['Insert','Delete','Home','End','PageUp','PageDown','ArrowLeft','ArrowUp','ArrowRight','ArrowDown','Pause','ScrollLock'];
+  function acKeyFromEvent(e){const code=String(e.code||'');let m;if((m=code.match(/^F(\d{1,2})$/))&&+m[1]>=1&&+m[1]<=12)return code;if((m=code.match(/^Key([A-Z])$/)))return m[1];if((m=code.match(/^Digit(\d)$/)))return m[1];if(AC_PLAIN.includes(code))return code;return null;}
+  const acBlock=e=>{if(e.button===1||e.button===3||e.button===4){e.preventDefault();e.stopImmediatePropagation();}};
+  function stopAcCapture(resume=true){clearTimeout(acTimer);if(acListener){window.removeEventListener('keydown',acListener,true);window.removeEventListener('mousedown',acMouse,true);window.removeEventListener('mouseup',acBlock,true);window.removeEventListener('auxclick',acBlock,true);acListener=null;acMouse=null;window.__BB_HOTKEY_CAPTURE__=false;if(resume)ipcRenderer.invoke('autoclick:pause',false).catch(()=>{});}}
+  async function acSave(patch,msg){try{acState=await ipcRenderer.invoke('autoclick:save',patch);if(msg)toast(msg);}catch(e){toast(String(e?.message||'No se pudo guardar.').replace(/^Error invoking remote method '[^']+': (Error: )?/,''));await acLoad();}if(tab==='autoclick')render();}
+  function acAccept(role,key){
+    const cur={...(acState?.keys||{set:'F3',start:'F1',stop:'F2'})};
+    const other=Object.keys(cur).find(r=>r!==role&&cur[r]===key);
+    if(other){toast(`«${acKeyLabel(key)}» ya es la tecla de «${AC_ROLES.find(x=>x[0]===other)[1]}».`);return false;}
+    const hk=hkNow();const sb=Object.keys(hk).find(k=>hk[k]===key);
+    if(sb){toast(`«${acKeyLabel(key)}» ya la usa la Smart Bar (${hkLabel(sb)}). Elige otra.`);return false;}
+    stopAcCapture(false);
+    const risky=/^[A-Z0-9]$/.test(key);
+    acSave({keys:{[role]:key}},risky?`Guardado: ${key}. Ojo: el autoclick la detecta en todo Windows, también mientras escribes.`:`Guardado: ${acKeyLabel(key)}.`);
+    return true;
+  }
+  function startAcCapture(role,btn){
+    stopHkCapture();stopAcCapture(false);window.__BB_HOTKEY_CAPTURE__=true;
+    btn.textContent='Pulsa una tecla o botón del ratón…  (Esc cancela)';btn.classList.add('listening');
+    ipcRenderer.invoke('autoclick:pause',true).catch(()=>{});
+    acListener=e=>{e.preventDefault();e.stopImmediatePropagation();if(e.repeat)return;if(e.code==='Escape'){stopAcCapture();render();return;}
+      if(e.ctrlKey||e.altKey||e.metaKey||/^(Control|Shift|Alt|Meta|OS)/.test(String(e.code||'')))return;
+      const key=acKeyFromEvent(e);if(!key){toast('Esa tecla no se puede usar. Prueba F1–F12, una letra, un número, Insert, Inicio, Re Pág…');return;}acAccept(role,key);};
+    acMouse=e=>{const key=e.button===1?'Mouse3':e.button===3?'Mouse4':e.button===4?'Mouse5':null;if(!key)return;e.preventDefault();e.stopImmediatePropagation();acAccept(role,key);};
+    window.addEventListener('keydown',acListener,true);window.addEventListener('mousedown',acMouse,true);window.addEventListener('mouseup',acBlock,true);window.addEventListener('auxclick',acBlock,true);
+    acTimer=setTimeout(()=>{stopAcCapture();render();},29000);
+  }
+  function renderAutoclick(){
+    if(!acState){setTimeout(acLoad,0);return '<div class="hub-section"><div class="hub-small">Cargando…</div></div>';}
+    const k=acState.keys,iv=acState.interval;
+    return `<div class="hub-section"><div class="hub-label">AUTOCLICK</div><div class="hub-check"><div><strong>Activar el autoclick</strong><span>Funciona en segundo plano mientras el launcher está abierto. Esta configuración es la misma para todos tus perfiles.</span></div><input id="acEnabled" type="checkbox" ${acState.enabled?'checked':''}></div>
+      <div class="sb-intro" style="margin-top:10px">Cómo se usa: <b>${esc(acKeyLabel(k.set))}</b> guarda la posición del ratón · <b>${esc(acKeyLabel(k.start))}</b> empieza · <b>${esc(acKeyLabel(k.stop))}</b> para. Dentro de BoomBang los clics van directos al juego y tu ratón queda libre.</div></div>
+    <div class="hub-section ${acState.enabled?'':'ac-off'}"><div class="hub-label">VELOCIDAD</div><div class="sb-intro">Milisegundos entre cada tanda de clics. <b>1 = máximo</b> (8 clics por tanda); a partir de 2 ms, 6 clics por tanda como el original. Si el PC va lento o se traba, súbelo (por ejemplo 30–100).</div>
+      <div class="ac-speed"><input type="range" id="acRange" min="1" max="500" step="1" value="${Math.min(500,iv)}" aria-label="Intervalo del autoclick"><input type="number" id="acInterval" class="hub-input" min="1" max="1000" step="1" value="${iv}" aria-label="Intervalo en milisegundos"><span>ms</span></div>
+      <div class="hub-small" id="acSpeedNote" style="margin-top:6px">${iv<=1?'Modo máximo.':iv<30?'Rápido.':iv<=100?'Equilibrado: buena opción si el PC se traba.':'Lento.'}</div></div>
+    <div class="hub-section ${acState.enabled?'':'ac-off'}"><div class="hub-label">TECLAS</div><div class="sb-intro">Pulsa un botón y luego la tecla (o un botón del ratón: la rueda o los laterales). Mejor teclas que no uses para escribir, como F1–F12: el autoclick las detecta en todo Windows.</div>
+      <div class="sb-hks">${AC_ROLES.map(([r,label,hint])=>`<div class="sb-hk" title="${esc(hint)}"><span>${esc(label)}</span><button class="hub-mini sb-key" data-ac-key="${r}">${esc(acKeyLabel(k[r]))}</button></div>`).join('')}</div>
+      <div class="hub-row" style="margin-top:10px"><button class="hub-btn" id="acKeysReset">Restablecer (F3 · F1 · F2)</button></div></div>`;
+  }
+  function bindAutoclick(){
+    const en=q('#acEnabled');if(en)en.onchange=()=>acSave({enabled:en.checked},en.checked?'Autoclick activado.':'Autoclick desactivado.');
+    const rg=q('#acRange'),nb=q('#acInterval');
+    const note=v=>{const el=q('#acSpeedNote');if(el)el.textContent=v<=1?'Modo máximo.':v<30?'Rápido.':v<=100?'Equilibrado: buena opción si el PC se traba.':'Lento.';};
+    const clamp=v=>{const n=Math.round(Number(v));return Number.isFinite(n)&&n>=1?Math.min(1000,n):1;};
+    const commit=v=>{clearTimeout(acSaveTimer);acSaveTimer=setTimeout(()=>acSave({interval:clamp(v)},`Intervalo: ${clamp(v)} ms.`),250);};
+    if(rg)rg.oninput=()=>{if(nb)nb.value=rg.value;note(Number(rg.value));};
+    if(rg)rg.onchange=()=>commit(rg.value);
+    if(nb)nb.oninput=()=>{const n=Math.round(Number(nb.value));if(Number.isFinite(n)&&n>=1){if(rg)rg.value=String(Math.min(500,n));note(n);}};
+    if(nb)nb.onchange=()=>{nb.value=String(clamp(nb.value));commit(nb.value);};
+    root.querySelectorAll('[data-ac-key]').forEach(el=>el.onclick=()=>startAcCapture(el.dataset.acKey,el));
+    const rs=q('#acKeysReset');if(rs)rs.onclick=()=>{stopAcCapture(false);acSave({keys:null},'Teclas restablecidas: F3 · F1 · F2.');};
+  }
   function renderAppearance(){const mode=data.openMode||'window';const fit=clientSettings.fitMode||'fill';const zoom=Math.round(Number(clientSettings.zoom)||100);return `<div class="hub-section"><div class="hub-label">VISTA DEL CLIENTE</div><div class="hub-meta-card"><div class="hub-meta-row"><span>Modo</span><strong>${esc(fit)}</strong></div><div class="hub-row" style="margin-top:10px"><button class="hub-btn ${fit==='fill'?'primary':''}" data-fit="fill">Rellenar</button><button class="hub-btn ${fit==='contain'?'primary':''}" data-fit="contain">Ajustar</button><button class="hub-btn ${fit==='original'?'primary':''}" data-fit="original">Original</button><select id="clientZoomSelect" class="hub-select"><option value="90" ${zoom===90?'selected':''}>90%</option><option value="100" ${zoom===100?'selected':''}>100%</option><option value="110" ${zoom===110?'selected':''}>110%</option><option value="120" ${zoom===120?'selected':''}>120%</option></select></div></div></div><div class="hub-section"><div class="hub-label">CÓMO ABRIR EL HUB</div><div class="hub-open-modes"><button class="hub-btn ${mode==='overlay'?'primary':''}" data-open-mode="overlay"><strong>▣ Dentro del juego</strong><span>Panel integrado.</span></button><button class="hub-btn ${mode==='window'?'primary':''}" data-open-mode="window"><strong>▢ Ventana aparte</strong><span>Ventana independiente.</span></button><button class="hub-btn ${mode==='window-top'?'primary':''}" data-open-mode="window-top"><strong>◈ Siempre encima</strong><span>Ventana sobre el juego.</span></button></div></div><div class="hub-section"><div class="hub-label">PRIVACIDAD</div><div class="hub-check"><div><strong>Modo streamer / privado</strong><span>Oculta el nombre del perfil.</span></div><input id="streamerMode" type="checkbox" ${data.streamerMode?'checked':''}></div></div><div class="hub-section"><div class="hub-label">POSICIÓN DEL HUB</div><div class="hub-dock"><button class="hub-btn ${data.dock==='left'?'primary':''}" data-action="dock-left">← Izquierda</button><button class="hub-btn ${data.dock!=='left'?'primary':''}" data-action="dock-right">Derecha →</button></div></div>`;}
-  function render(){stopHkCapture();if(!data||!content)return;renderTabs();const views={home:renderHome,smartbar:renderSmartbar,games:renderGames,assist:renderAssist,tools:renderTools,performance:renderPerformance,appearance:renderAppearance};content.innerHTML=views[tab]?views[tab]():renderHome();bind();applyTheme();updatePerfBadge();}
+  function render(){stopHkCapture();stopAcCapture();if(!data||!content)return;renderTabs();const views={home:renderHome,smartbar:renderSmartbar,autoclick:renderAutoclick,games:renderGames,assist:renderAssist,tools:renderTools,performance:renderPerformance,appearance:renderAppearance};content.innerHTML=views[tab]?views[tab]():renderHome();bind();applyTheme();updatePerfBadge();}
 
   let assistState={mode:'off',sequence:[]};
   function bind(){
+    bindAutoclick();
     const copyBtn=q('#copySettings');if(copyBtn)copyBtn.onclick=async()=>{const to=[...root.querySelectorAll('[data-copy-to]')].filter(x=>x.checked).map(x=>x.dataset.copyTo);const parts={bar:!!q('#copyBar')?.checked,calib:!!q('#copyCalib')?.checked};if(!to.length)return toast('Marca al menos un perfil.');if(!parts.bar&&!parts.calib)return toast('Elige qué copiar.');try{const r=await ipcRenderer.invoke('client:copy-settings',profileId,to,parts);toast(r&&r.ok?`Copiado a ${r.copied} perfil${r.copied===1?'':'es'}.`:(r&&r.message)||'No se pudo copiar.');}catch(_){toast('No se pudo copiar.');}};
     root.querySelectorAll('[data-sb-move]').forEach(el=>el.onclick=()=>{const [i,d]=el.dataset.sbMove.split(':').map(Number);const a=sbItems();const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];sbSave(a);});
     root.querySelectorAll('[data-sb-del]').forEach(el=>el.onclick=()=>{sbEdit=null;sbSave(sbItems().filter(i=>i.id!==el.dataset.sbDel));});

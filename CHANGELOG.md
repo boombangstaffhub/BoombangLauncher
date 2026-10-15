@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.2.0
+
+- Nueva pestaña **Autoclick** en el BB Hub: activarlo, la velocidad y las teclas, todo en un sitio.
+- **Teclas del autoclick configurables**: elige qué tecla guarda la posición, cuál empieza y cuál para (F1–F12, letras, números, Insert, Inicio… o la rueda y los botones laterales del ratón).
+- **Más potencia a 1 ms**: el modo máximo hace 8 clics por tanda en vez de 6.
+- El intervalo del autoclick se ha movido de los Ajustes del launcher al BB Hub.
+
 ## 1.1.0
 
 - Autoclick: nuevo ajuste **Intervalo del autoclick** en Ajustes (de 1 a 1000 ms). Si el PC se traba con el autoclick, súbelo (por ejemplo 30–100 ms).

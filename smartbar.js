@@ -543,6 +543,9 @@ function create(api) {
   }
 
   // ------------------------------------------------------------------ hotkeys (Ctrl+Shift+…)
+  function autoclickKeyList() {
+    try { const k = typeof api.autoclickKeys === 'function' ? api.autoclickKeys() : null; return Array.isArray(k) && k.length ? k : ['F1', 'F2', 'F3']; } catch (_) { return ['F1', 'F2', 'F3']; }
+  }
   function isTyping() {
     const el = document.activeElement;
     if (!el) return false;
@@ -551,7 +554,7 @@ function create(api) {
   function onKey(e) {
     if (e.repeat || window.__BB_HOTKEY_CAPTURE__) return;            // the Hub is recording a new hotkey
     const combo = comboFromEvent(e);
-    if (!combo || /^F[123]$/.test(combo)) return;          // F1/F2/F3 belong to the autoclick
+    if (!combo || autoclickKeyList().includes(combo)) return;   // the autoclick keys (F1/F2/F3 by default) belong to it
     const map = hotkeys();
     const action = Object.keys(map).find(k => map[k] && map[k] === combo);
     if (!action) return;

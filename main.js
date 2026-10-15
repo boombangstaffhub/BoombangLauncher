@@ -41,6 +41,7 @@ const DEFAULT_SETTINGS = {
   autoclickEnabled: false,   // opt-in: turn it on in Settings
   autoUpdateCheck: true,
   autoclickInterval: 1,
+  autoclickKeys: null,       // null = F3 / F1 / F2 (set in the BB Hub)
   hideLauncherOnGameLaunch: false,
   rememberWindowSize: true,
   checkServerOnStart: true,
@@ -535,9 +536,30 @@ ipcMain.handle('launcher:hide', () => { if (launcherWindow && !launcherWindow.is
 ipcMain.handle('settings:get', () => readSettings());
 ipcMain.handle('settings:save', (_e, updates) => { const next = { ...readSettings(), ...(updates || {}) }; writeSettings(next); applyStartupSettings(next); refreshTrayMenu(); startServerMonitor(); syncAutoclick(); return next; });
 
-// ---- Autoclick CEROSIETE (hidden): F3 saves the position, F1 starts, F2 stops ----
+// ---- Autoclick CEROSIETE (hidden): F3 saves the position, F1 starts, F2 stops (keys configurable in the BB Hub) ----
 let autoclickProc = null, autoclickConf = '';
-const AUTOCLICK_CLICKS = 6;
+// Keys the autoclick can use (Windows virtual-key codes). Single keys only: the helper polls them globally.
+const AC_KEY_CODES = (() => {
+  const m = {};
+  for (let i = 1; i <= 12; i++) m['F' + i] = 0x6F + i;
+  for (let c = 65; c <= 90; c++) m[String.fromCharCode(c)] = c;
+  for (let d = 0; d <= 9; d++) m[String(d)] = 0x30 + d;
+  Object.assign(m, { Insert: 0x2D, Delete: 0x2E, Home: 0x24, End: 0x23, PageUp: 0x21, PageDown: 0x22,
+    ArrowLeft: 0x25, ArrowUp: 0x26, ArrowRight: 0x27, ArrowDown: 0x28, Pause: 0x13, ScrollLock: 0x91,
+    Mouse3: 0x04, Mouse4: 0x05, Mouse5: 0x06 });
+  return m;
+})();
+const AC_DEFAULT_KEYS = { set: 'F3', start: 'F1', stop: 'F2' };
+function autoclickKeys(st = readSettings()) {
+  const k = st.autoclickKeys && typeof st.autoclickKeys === 'object' ? st.autoclickKeys : {};
+  const out = {};
+  for (const role of Object.keys(AC_DEFAULT_KEYS)) out[role] = AC_KEY_CODES[k[role]] ? String(k[role]) : AC_DEFAULT_KEYS[role];
+  return new Set(Object.values(out)).size === 3 ? out : { ...AC_DEFAULT_KEYS };   // never two roles on one key
+}
+const autoclickIntervalOf = st => Math.max(1, Math.min(1000, Math.round(Number(st.autoclickInterval) || 1)));
+// 6 clicks per tick like the original; at 1 ms ("máximo") a bit more punch: 8 clicks per tick.
+const autoclickClicksFor = interval => (interval <= 1 ? 8 : 6);
+let autoclickClicks = 6, autoclickPausedUntil = 0, autoclickPauseTimer = null;
 // Clicks for a target inside a BoomBang window go straight into the game: the real mouse is never moved.
 function gameAtScreenPoint(dip) {
   let hit = null;
@@ -557,7 +579,7 @@ function autoclickInGame(px, py) {
     const x = Math.round(dip.x - hit.b.x), y = Math.round(dip.y - hit.b.y);
     const wc = hit.game.webContents;
     wc.sendInputEvent({ type: 'mouseMove', x, y });
-    for (let i = 0; i < AUTOCLICK_CLICKS; i++) {
+    for (let i = 0; i < autoclickClicks; i++) {
       wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
       wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
     }
@@ -582,8 +604,9 @@ function stopAutoclick() {
 function syncAutoclick() {
   if (process.platform !== 'win32') return;
   const st = readSettings();
-  const interval = Math.max(1, Math.min(1000, Math.round(Number(st.autoclickInterval) || 1)));
-  const conf = st.autoclickEnabled === false ? '' : String(interval);
+  const interval = autoclickIntervalOf(st), clicks = autoclickClicksFor(interval), keys = autoclickKeys(st);
+  const paused = Date.now() < autoclickPausedUntil;      // the Hub is recording a new key
+  const conf = st.autoclickEnabled === false || paused ? '' : [interval, clicks, keys.start, keys.stop, keys.set].join('|');
   if (conf === autoclickConf && (conf === '' || autoclickProc)) return;
   stopAutoclick();
   if (!conf) return;
@@ -592,7 +615,9 @@ function syncAutoclick() {
     const dir = path.join(DATA_ROOT, 'helpers'); fs.mkdirSync(dir, { recursive: true });
     for (const f of ['autoclick.cs', 'autoclick.ps1']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
     const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-STA', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
-      '-File', path.join(dir, 'autoclick.ps1'), '-ParentPid', String(process.pid), '-Interval', String(interval)], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+      '-File', path.join(dir, 'autoclick.ps1'), '-ParentPid', String(process.pid), '-Interval', String(interval),
+      '-Clicks', String(clicks), '-StartKey', String(AC_KEY_CODES[keys.start]), '-StopKey', String(AC_KEY_CODES[keys.stop]), '-SetKey', String(AC_KEY_CODES[keys.set])], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    autoclickClicks = clicks;
     autoclickProc = proc; autoclickConf = conf;   // tracked first, so it can always be stopped
     let pending = '';
     if (proc.stdout) proc.stdout.setEncoding('utf8');
@@ -607,6 +632,43 @@ function syncAutoclick() {
     autoclickProc = proc; autoclickConf = conf;
   } catch (error) { console.warn('[BB Launcher] autoclick no se pudo iniciar', error); }
 }
+function autoclickState() {
+  const st = readSettings();
+  return { enabled: st.autoclickEnabled !== false, interval: autoclickIntervalOf(st), keys: autoclickKeys(st), defaults: { ...AC_DEFAULT_KEYS }, keyNames: Object.keys(AC_KEY_CODES) };
+}
+function broadcastAutoclickKeys() {
+  const keys = autoclickKeys();
+  for (const id of games.keys()) sendClientCommand(id, { type: 'autoclick-keys', keys }).catch(() => {});
+}
+ipcMain.handle('autoclick:get', () => autoclickState());
+ipcMain.handle('autoclick:save', (_e, patch) => {
+  const p = patch && typeof patch === 'object' ? patch : {};
+  const st = readSettings(), next = { ...st };
+  if ('enabled' in p) next.autoclickEnabled = Boolean(p.enabled);
+  if ('interval' in p) next.autoclickInterval = autoclickIntervalOf({ autoclickInterval: p.interval });
+  if ('keys' in p) {
+    if (p.keys === null) next.autoclickKeys = null;
+    else {
+      const k = p.keys && typeof p.keys === 'object' ? p.keys : {};
+      const cand = { ...autoclickKeys(st) };
+      for (const role of Object.keys(AC_DEFAULT_KEYS)) if (k[role] !== undefined) cand[role] = String(k[role]);
+      if (!Object.values(cand).every(v => AC_KEY_CODES[v])) throw new Error('Tecla no válida para el autoclick.');
+      if (new Set(Object.values(cand)).size !== 3) throw new Error('Cada acción del autoclick necesita una tecla distinta.');
+      next.autoclickKeys = cand;
+    }
+  }
+  clearTimeout(autoclickPauseTimer); autoclickPausedUntil = 0;   // saving ends any key recording
+  writeSettings(next); syncAutoclick(); broadcastAutoclickKeys();
+  return autoclickState();
+});
+// While the Hub records a new key the helper is stopped, so pressing a key can't start clicking by accident.
+ipcMain.handle('autoclick:pause', (_e, on) => {
+  clearTimeout(autoclickPauseTimer);
+  autoclickPausedUntil = on ? Date.now() + 30000 : 0;
+  syncAutoclick();
+  if (on) autoclickPauseTimer = setTimeout(() => { autoclickPausedUntil = 0; syncAutoclick(); }, 30500);
+  return true;
+});
 ipcMain.handle('server:check', () => broadcastServerStatus());
 ipcMain.handle('news:fetch', () => fetchNews());
 ipcMain.handle('app:openPath', (_e, target) => {

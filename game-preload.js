@@ -903,8 +903,12 @@ function applyRemoteSettings(settings) {
 // ---------------------------------------------------------------------------
 // Smart Bar (GG, SRT {user}, upper colours, ping, hotkeys) lives in smartbar.js
 // ---------------------------------------------------------------------------
+// Keys used by the autoclick (configurable in the BB Hub): the Smart Bar must never react to them.
+let autoclickKeys = { set: 'F3', start: 'F1', stop: 'F2' };
+ipcRenderer.invoke('autoclick:get').then(st => { if (st && st.keys) autoclickKeys = st.keys; }).catch(() => {});
 const smartbar = require('./smartbar').create({
   ipcRenderer,
+  autoclickKeys: () => Object.values(autoclickKeys || {}),
   getProfileId: () => profileId,
   getSettings: () => clientSettings,
   saveSettings: patch => saveClientSettings(patch),
@@ -919,6 +923,7 @@ function handleLauncherCommand(command) {
   if (!command) return;
   if (command.type === 'settings') applyRemoteSettings(command.settings);
   if (command.type === 'notice') openClientNotice(command.message);
+  if (command.type === 'autoclick-keys' && command.keys && typeof command.keys === 'object') autoclickKeys = command.keys;
   if (command.type === 'game-assist') handleGameAssistCommand(command.payload || {});
   if (command.type === 'client-visual') applyClientVisualSettings(command.payload || {});
   if (command.type === 'hub') { try { if (typeof window.__BB_HUB_OPEN_TAB__ === 'function') window.__BB_HUB_OPEN_TAB__(command.tab || 'home'); } catch (_) {} }
