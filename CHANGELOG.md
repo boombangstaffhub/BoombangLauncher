@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.4.0
+
+- **Screen Marker de Sendero Oculto rehecho**: una sola barra dentro del juego (se arrastra desde ⋮⋮) con lápiz, marcas ✕ ✓ ? ◎, 5 colores, 3 grosores, deshacer y borrar.
+- Cambio rápido **lápiz ⇄ ratón** con clic derecho o la tecla Espacio; en modo ratón, mantén Shift para dibujar mientras la pulsas. Ctrl+Z deshace.
+- Se abre desde el BB Hub → Minijuegos → Sendero Oculto.
+
 ## 1.3.0
 
 - Nueva pestaña **Avisos** en el BB Hub: suena un aviso suave cuando cae un objeto que le hayas enseñado, y el botón del juego parpadea en la barra de tareas si estás en otra ventana.

@@ -114,6 +114,7 @@ El launcher se actualiza solo:
 | `index.html`, `renderer.js`, `style.css`, `galaxy.js` | Ventana del launcher y sus diseños animados |
 | `game-preload.js` | Se ejecuta dentro del juego: auto-login, vista del cliente, ping |
 | `smartbar.js` | La Smart Bar (botones, upper rápido, atajos) |
+| `marker.js` | Screen Marker de Sendero Oculto |
 | `drops.js`, `pixi-hook.js`, `visual.js` | Aviso de objetos (por su nombre en el juego; por forma como respaldo) |
 | `client-hub.js`, `client-hub.css`, `hub-window.html` | El BB Hub |
 | `rtt.js` | Medición del ping |

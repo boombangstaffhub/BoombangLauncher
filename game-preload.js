@@ -794,6 +794,7 @@ function installGameAssistPointerHandlers(stage) {
 
 function handleGameAssistCommand(payload = {}) {
   const action = String(payload.action || '');
+  if (/^marker-/.test(action)) { marker.handleCommand(payload); return; }   // the new Screen Marker
   if (action === 'reset' || action === 'close' || action === 'off') {
     gameAssist.gameId = String(payload.gameId || 'unknown');
     setPenMode(false, true);
@@ -918,6 +919,12 @@ const smartbar = require('./smartbar').create({
   ownNames: () => [accountUsername, profileName]
 });
 window.__BB_SMARTBAR__ = smartbar;   // used by the in-client BB Hub
+
+// Screen Marker (Sendero Oculto): one floating bar inside the game (marker.js)
+const marker = require('./marker').create({
+  notice: message => openClientNotice(message),
+  isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)
+});
 
 // Aviso de objetos: a soft chime when an object you taught it appears (drops.js)
 const drops = require('./drops').create({
