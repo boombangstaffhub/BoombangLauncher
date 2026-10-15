@@ -2,7 +2,11 @@
 
 ## 1.3.0
 
-- Nueva pestaña **Avisos** en el BB Hub: suena un aviso suave cuando cae un objeto que hayas enseñado al launcher, y el botón del juego parpadea en la barra de tareas si estás en otra ventana. Se enseña un objeto haciendo clic en él y el launcher le pregunta al propio juego qué objeto es: lo reconoce por su nombre interno, no por colores ni formas, así que la lluvia, la niebla o las sombras no le afectan. Opción «también parecidos» para avisar de cualquier objeto de la misma familia. Solo avisa: no recoge nada ni mueve el ratón.
+- Nueva pestaña **Avisos** en el BB Hub: suena un aviso suave cuando cae un objeto que le hayas enseñado, y el botón del juego parpadea en la barra de tareas si estás en otra ventana.
+- Para enseñarle un objeto: **Aprender objeto** y clic en él dentro del juego. El launcher reconoce la imagen original del objeto dentro del juego, no los colores de la pantalla, así que la lluvia, la niebla o las sombras no le afectan. Sale con su miniatura para que veas qué ha aprendido.
+- Opción **«también otros que caigan»** para avisar de cualquier objeto que el juego ponga en el mismo sitio.
+- Volumen ajustable, con botón de prueba. Si tienes el juego silenciado, el aviso suena por el launcher.
+- Solo avisa: no recoge nada, no hace clic y no mueve el ratón.
 
 ## 1.2.0
 
