@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline' https:; img-src 'self' https: data: blob:; font-src 'self' https: data:; script-src 'self' 'unsafe-inline' https:; connect-src 'self' https: wss:; media-src 'self' https: data: blob:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoomBang Launcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="galaxy" aria-hidden="true"></canvas>
+<div class="nebula" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/icon.png" class="brand-icon" alt="BB">
+      <div><strong>BoomBang</strong><span id="brandTag">GALAXY LAUNCHER</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-scroll="overview"><span>⌂</span><div><b>Inicio</b><small>Jugar y estado</small></div></button>
+      <button class="nav-item" data-scroll="profiles"><span>◉</span><div><b>Perfiles</b><small>Tus cuentas</small></div></button>
+      <button class="nav-item" data-scroll="newsSection"><span>◈</span><div><b>Noticias</b><small>Actualizaciones</small></div></button>
+      <button class="nav-item" id="quickHubSidebar"><span>✦</span><div><b>BB Hub</b><small>Smart Bar y cliente</small></div></button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-status" id="serverPill"><i id="serverDot" class="dot"></i><div><b id="serverText">Comprobando servidor</b><small id="serverLatency">—</small></div></div>
+      <button class="sidebar-action" id="sideSettingsBtn">⚙ Ajustes</button>
+      <button class="sidebar-action" id="diagnosticsBtn">⌁ Diagnóstico</button>
+    </div>
+  </aside>
+
+  <main class="app-main" id="overview">
+    <header class="topbar">
+      <div class="topbar-copy"><span class="eyebrow" id="themeEyebrow">BOOMBANG · GALAXY CRYSTAL</span><h1>Todo tu juego, en un solo lugar.</h1></div>
+      <div class="top-actions"><button class="round" id="refreshBtn" title="Actualizar">↻</button><button class="round" id="officialBtn" title="BoomBang oficial">↗</button><button class="round" id="settingsBtn" title="Ajustes">⚙</button></div>
+    </header>
+
+    <section class="update-banner hidden" id="updateBanner" role="status">
+      <div class="update-icon">⬆</div>
+      <div class="update-copy"><strong id="updateTitle">Nueva versión disponible</strong><span id="updateStatus">Pulsa «Actualizar» para instalarla. Tus perfiles y ajustes no se tocan.</span><div class="update-notes hidden" id="updateNotes"></div></div>
+      <div class="update-actions"><button class="ghost" id="updateNotesBtn">Novedades</button><button class="ghost" id="updateLaterBtn">Más tarde</button><button class="primary" id="updateNowBtn">Actualizar</button></div>
+    </section>
+
+    <section class="dashboard-hero">
+      <div class="hero-main">
+        <div class="hero-badge"><span class="pulse"></span> LAUNCHER ONLINE</div>
+        <div class="hero-grid">
+          <div>
+            <h2>Entra rápido.<br><span>Juega sin ruido.</span></h2>
+            <p>Perfiles separados, ping real al servidor, autoclick integrado y la Smart Bar con upper rápido.</p>
+            <div class="hero-actions"><button id="quickPlay" class="primary big">Jugar con último perfil</button><button id="heroProfilesBtn" class="ghost">Mis perfiles</button></div>
+          </div>
+          <div class="hero-orbit"><div class="orbit glow-a"></div><div class="orbit glow-b"></div><div class="crystal" id="crystal"><div class="gem"><i class="facet f1"></i><i class="facet f2"></i><i class="facet f3"></i><i class="facet f4"></i><i class="facet f5"></i><i class="facet f6"></i><i class="facet f7"></i><b class="gem-shine"></b></div><img src="assets/icon.png" alt="BoomBang" class="hero-icon"></div></div>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="status-panel accent"><span>ÚLTIMA CUENTA</span><strong id="lastProfileName">Sin perfil</strong><p id="lastProfileMeta">Añade una cuenta para empezar</p><div class="status-row"><small id="lastProfileDate">—</small></div><button id="lastProfileBtn" class="primary last-play">Jugar</button></div>
+      </div>
+    </section>
+
+    <section class="section-block" id="profiles">
+      <div class="section-head"><div><span class="kicker">CUENTAS</span><h2>Tus perfiles</h2><p>Cada perfil tiene su propia sesión y su propia Smart Bar.</p></div><div class="section-tools"><input id="profileSearch" placeholder="Buscar perfil…"><button class="primary" id="addProfileBtn">+ Añadir</button></div></div>
+      <div id="profileList" class="profile-grid"></div>
+      <div id="emptyState" class="empty hidden"><div class="empty-icon">✦</div><h3>Aún no tienes perfiles</h3><p>Añade tu primera cuenta para empezar.</p><button class="primary" id="emptyAddBtn">+ Añadir cuenta</button></div>
+    </section>
+
+    <section class="section-block" id="newsSection">
+      <div class="section-head"><div><span class="kicker">COMUNIDAD</span><h2>Últimas noticias</h2><p id="newsMeta">Fuente oficial de BoomBang</p></div><div class="section-tools"><button class="ghost" id="reloadNewsBtn">↻ Actualizar</button><button class="ghost" id="allNewsBtn">Ver todas ↗</button></div></div>
+      <div id="newsGrid" class="news-grid"></div>
+    </section>
+
+    <footer><span id="footerTheme">BoomBang Launcher · Galaxy Crystal</span><span id="footerVersion">V—</span></footer>
+  </main>
+</div>
+
+<div class="modal hidden" id="profileModal"><div class="backdrop"></div><div class="modal-card"><button class="close" id="closeModal">×</button><div class="kicker" id="modalKicker">NUEVO PERFIL</div><h2 id="modalTitle">Añadir cuenta</h2><p id="modalText">Elige un nombre para identificar la cuenta en el launcher.</p>
+  <input id="profileName" maxlength="24" placeholder="Nombre del personaje">
+  <div class="modal-actions"><button class="ghost" id="cancelModal">Cancelar</button><button class="primary" id="saveProfile">Guardar</button></div><div class="error" id="modalError"></div></div></div>
+
+<div class="modal hidden" id="settingsModal"><div class="backdrop"></div><div class="modal-card settings"><button class="close" id="closeSettings">×</button><div class="kicker">CONFIGURACIÓN</div><h2>Ajustes del launcher</h2>
+  <div class="setting-row"><div><strong>Auto-login</strong><span>Rellenar y entrar con las credenciales guardadas.</span></div><label class="switch"><input type="checkbox" id="setAutoLogin"><span></span></label></div>
+  <div class="setting-row"><div><strong>Autoclick</strong><span>F3 guarda la posición del ratón · F1 empieza · F2 para. Funciona en segundo plano mientras el launcher está abierto.</span></div><label class="switch"><input type="checkbox" id="setAutoclick"><span></span></label></div>
+  <div class="setting-row"><div><strong>Ocultar launcher al jugar</strong><span>Deja solo la ventana de BoomBang mientras juegas.</span></div><label class="switch"><input type="checkbox" id="setHideLauncher"><span></span></label></div>
+  <div class="setting-row"><div><strong>Recordar tamaño</strong><span>Guardar el tamaño de esta ventana.</span></div><label class="switch"><input type="checkbox" id="setRememberSize"><span></span></label></div>
+  <div class="setting-row"><div><strong>Comprobar servidor</strong><span>Actualizar el estado cada minuto.</span></div><label class="switch"><input type="checkbox" id="setServerCheck"><span></span></label></div>
+  <div class="setting-row"><div><strong>Iniciar con Windows</strong><span>Abre el launcher automáticamente al iniciar sesión.</span></div><label class="switch"><input type="checkbox" id="setStartWindows"><span></span></label></div>
+  <div class="setting-row"><div><strong>Minimizar a la bandeja</strong><span>La X oculta el launcher en la bandeja.</span></div><label class="switch"><input type="checkbox" id="setMinimizeTray"><span></span></label></div>
+  <div class="setting-row"><div><strong>Buscar actualizaciones al abrir</strong><span id="updateSettingInfo">Avisa cuando haya una versión nueva en GitHub.</span></div><label class="switch"><input type="checkbox" id="setAutoUpdate"><span></span></label></div>
+  <div class="setting-row"><div><strong>Versión</strong><span id="updateCheckInfo">—</span></div><button class="ghost" id="checkUpdateBtn">Buscar ahora</button></div>
+  <div class="theme-block"><div class="theme-head"><strong>Diseño del launcher</strong><span>Se aplica al momento.</span></div><div class="theme-grid" id="themeGrid"></div><input type="hidden" id="setTheme" value="galaxy"></div>
+
+  <div class="settings-footer"><button class="primary" id="saveSettings">Guardar ajustes</button></div></div></div>
+
+<div class="modal hidden" id="diagnosticsModal"><div class="backdrop"></div><div class="modal-card settings diagnostics"><button class="close" id="closeDiagnostics">×</button><div class="kicker">SISTEMA</div><h2>Diagnóstico</h2><div class="diag-grid"><div><span>Launcher</span><strong id="diagVersion">—</strong></div><div><span>Electron</span><strong id="diagElectron">—</strong></div><div><span>Chromium</span><strong id="diagChrome">—</strong></div><div><span>Node</span><strong id="diagNode">—</strong></div><div><span>Plataforma</span><strong id="diagPlatform">—</strong></div><div><span>Perfiles</span><strong id="diagProfiles">—</strong></div><div><span>Clientes abiertos</span><strong id="diagGames">—</strong></div></div><div class="diag-path"><span>Datos locales</span><code id="diagData">—</code></div><div class="settings-footer"><button class="ghost" id="openDataFolder">Abrir carpeta de datos</button><button class="primary" id="closeDiagnosticsAction">Cerrar</button></div></div></div>
+<div class="toast hidden" id="toast"></div>
+<script src="galaxy.js"></script>
+<script src="renderer.js"></script>
+</body></html>

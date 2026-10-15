@@ -1,0 +1,27 @@
+{
+  "name": "boombang-launcher",
+  "version": "1.0.0",
+  "description": "Launcher no oficial para BoomBang (HTML5): perfiles, Smart Bar, upper rápido, autoclick y 7 diseños animados.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^39.0.0"
+  },
+  "build": {
+    "appId": "tv.boombang.launcher",
+    "productName": "BoomBang Launcher",
+    "win": {
+      "icon": "assets/icon.ico"
+    }
+  },
+  "private": true,
+  "keywords": [
+    "boombang",
+    "launcher",
+    "electron"
+  ]
+}

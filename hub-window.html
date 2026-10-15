@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BB Hub</title>
+</head>
+<body class="bb-hub-standalone">
+<script>
+(() => {
+  const { ipcRenderer } = require('electron');
+  const path = require('path');
+  const fs = require('fs');
+  window.ipcRenderer = ipcRenderer;
+  window.__BB_HUB_STANDALONE__ = true;
+
+  const qs = new URLSearchParams(location.search);
+  const profileId = qs.get('profileId') || '';
+  const requestedTab = qs.get('tab') || 'home';
+  const profileNameFromQuery = qs.get('profileName') || 'BoomBang';
+  window.profileId = profileId;
+
+  const boot = ctx => {
+    window.profileName = ctx?.profileName || profileNameFromQuery;
+    window.clientSettings = ctx?.clientSettings || {};
+    window.sessionStartedAt = Number(ctx?.sessionStartedAt) || Date.now();
+    window.statusMessage = { state: 'connected', latency: null };
+    window.currentFps = 0;
+    window.__BB_HUB_CSS__ = fs.readFileSync(path.join(__dirname, 'client-hub.css'), 'utf8');
+    const script = document.createElement('script');
+    script.src = 'client-hub.js';
+    script.dataset.requestedTab = requestedTab;
+    script.onload = () => {
+      if (typeof window.__BB_HUB_OPEN_TAB__ === 'function') {
+        window.__BB_HUB_OPEN_TAB__(requestedTab);
+      }
+    };
+    document.body.appendChild(script);
+  };
+
+  ipcRenderer.invoke('hub:get-context', profileId).then(boot).catch(() => boot(null));
+
+  ipcRenderer.on('hub:open-tab', (_event, tab) => {
+    if (typeof window.__BB_HUB_OPEN_TAB__ === 'function') window.__BB_HUB_OPEN_TAB__(tab || 'home');
+  });
+})();
+</script>
+</body>
+</html>

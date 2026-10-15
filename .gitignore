@@ -1,0 +1,15 @@
+# Dependencias (se instalan con npm install)
+node_modules/
+
+# Builds
+dist/
+out/
+
+# Logs y temporales
+npm-debug.log*
+*.log
+.DS_Store
+Thumbs.db
+
+# Los datos de cada usuario (perfiles, contraseñas cifradas, ajustes) NO viven aquí:
+# el launcher los guarda en %APPDATA%\BoomBangLauncher, fuera del proyecto.
