@@ -4,24 +4,68 @@
   "description": "Launcher no oficial para BoomBang (HTML5): perfiles, Smart Bar, upper rápido, autoclick y 7 diseños animados.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
   },
-  "author": "",
+  "author": "boombangstaffhub",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^39.0.0"
+    "electron": "^39.0.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "tv.boombang.launcher",
     "productName": "BoomBang Launcher",
+    "files": [
+      "**/*",
+      "!docs/**",
+      "!dist/**",
+      "!.github/**",
+      "!*.md",
+      "!Iniciar.bat"
+    ],
     "win": {
-      "icon": "assets/icon.ico"
-    }
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BoomBang Launcher",
+      "artifactName": "BoomBang-Launcher-Setup.${ext}",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "boombangstaffhub",
+        "repo": "BoombangLauncher",
+        "releaseType": "release"
+      }
+    ]
   },
   "private": true,
   "keywords": [
     "boombang",
     "launcher",
     "electron"
-  ]
+  ],
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/boombangstaffhub/BoombangLauncher.git"
+  }
 }

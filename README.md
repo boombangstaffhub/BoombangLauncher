@@ -20,12 +20,19 @@ Launcher de escritorio **no oficial** para jugar a [BoomBang](https://www.boomba
 
 ![BB Hub](docs/hub-smartbar.jpg)
 
-## Requisitos
+## Descarga
 
-- Windows 10 u 11.
-- [Node.js](https://nodejs.org/) (versión LTS).
+**[⬇ Descargar BoomBang Launcher para Windows](https://github.com/boombangstaffhub/BoombangLauncher/releases/latest/download/BoomBang-Launcher-Setup.exe)**
 
-## Instalación
+Abre `BoomBang-Launcher-Setup.exe`, sigue el instalador y listo: crea un acceso directo en el escritorio y en el menú Inicio. No hace falta instalar nada más.
+
+- Funciona en Windows 10 y 11 (64 bits).
+- Como el instalador no está firmado, Windows puede mostrar «Windows protegió tu PC» la primera vez: pulsa **Más información → Ejecutar de todas formas**.
+
+<details>
+<summary>Ejecutar desde el código (para desarrolladores)</summary>
+
+Necesitas [Node.js](https://nodejs.org/) (LTS).
 
 ```bash
 git clone https://github.com/boombangstaffhub/BoombangLauncher.git
@@ -34,7 +41,8 @@ npm install
 npm start
 ```
 
-O, sin usar la terminal: descarga el proyecto como ZIP desde GitHub, descomprímelo y haz doble clic en **`Iniciar.bat`**. La primera vez instala lo necesario y después abre el launcher.
+O descarga el código como ZIP y haz doble clic en `Iniciar.bat`. Para generar el instalador en tu PC: `npm run dist` (queda en `dist/`).
+</details>
 
 ## Primeros pasos
 
@@ -79,22 +87,18 @@ Por eso las actualizaciones nunca borran tu configuración. El botón **Diagnós
 
 ## Actualizaciones
 
-El launcher se actualiza solo desde este repositorio de GitHub:
+El launcher se actualiza solo:
 
 - Al abrirlo comprueba si hay una versión nueva y, si la hay, muestra un aviso con las **novedades** y el botón **Actualizar**.
-- Al pulsarlo descarga la versión nueva, guarda una copia de la actual, instala los archivos y se reinicia. Si algo falla, vuelve a dejar la versión que tenías.
+- Al pulsarlo descarga la versión nueva, la instala y se reinicia. Tus perfiles y ajustes no se tocan.
 - Cierra las ventanas de BoomBang antes de actualizar.
 - También puedes buscar a mano en **Ajustes → Versión → Buscar ahora**, o desactivar el aviso en **Ajustes → Buscar actualizaciones al abrir**.
-
-Si lo instalaste con `git clone`, también puedes usar `git pull`.
 
 ### Publicar una versión nueva (mantenedores)
 
 1. Sube el número de `version` en `package.json` (por ejemplo `1.0.0` → `1.1.0`).
 2. Añade arriba en `CHANGELOG.md` una sección `## 1.1.0` con los cambios: es lo que verá la gente en «Novedades».
-3. Haz push a la rama `main`. Todos los launchers verán el aviso la próxima vez que se abran.
-
-El repositorio y la rama se configuran en `update.json`.
+3. Haz push a `main`. GitHub Actions crea el instalador y publica la versión en **Releases**; todos los launchers verán el aviso la próxima vez que se abran.
 
 ## Estructura
 
@@ -108,3 +112,4 @@ El repositorio y la rama se configuran en `update.json`.
 | `rtt.js` | Medición del ping |
 | `autoclick.cs`, `autoclick.ps1` | El autoclick |
 | `updater.js`, `update.json` | Actualizaciones desde GitHub |
+| `.github/workflows/release.yml` | Crea el instalador y la Release en cada versión nueva |

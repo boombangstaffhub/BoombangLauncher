@@ -34,7 +34,7 @@ const HUB_FILE = path.join(DATA_ROOT, 'client-hub.json');
 const APP_ICON = path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const LAUNCHER_VERSION = app.getVersion();
 const { pingHost, RttTracker, DEFAULT_PING_HOST } = require('./rtt');
-const { createUpdater } = require('./updater');
+const { createUpdater, isNewer, notesFor, readConfig } = require('./updater');
 
 const DEFAULT_SETTINGS = {
   autoLogin: true,
@@ -1133,17 +1133,70 @@ function npmInstall(dir) {
   });
 }
 const updater = createUpdater({ appDir: __dirname, dataDir: DATA_ROOT, currentVersion: LAUNCHER_VERSION, getBuffer, extract: expandZip, npmInstall });
-ipcMain.handle('update:check', () => (app.isPackaged ? { ok: false, configured: false, current: LAUNCHER_VERSION, message: 'Esta instalación no admite actualizaciones automáticas.' } : updater.check()));
+// Installed version (BoomBang-Launcher-Setup.exe): updates come from GitHub Releases through electron-updater.
+// Source version (Iniciar.bat / npm start): updater.js downloads the branch ZIP.
+let installedUpdater = null;
+function getInstalledUpdater() {
+  if (!installedUpdater) {
+    installedUpdater = require('electron-updater').autoUpdater;
+    installedUpdater.autoDownload = false;
+    installedUpdater.autoInstallOnAppQuit = false;
+    installedUpdater.on('error', () => {});
+  }
+  return installedUpdater;
+}
+async function releaseNotes(version) {
+  const cfg = readConfig(__dirname);
+  if (!cfg) return '';
+  try { return notesFor((await getBuffer(`https://raw.githubusercontent.com/${cfg.repo}/${cfg.branch}/CHANGELOG.md?t=${Date.now()}`)).toString('utf8'), version); } catch (_) { return ''; }
+}
+async function checkInstalled() {
+  try {
+    const result = await getInstalledUpdater().checkForUpdates();
+    const latest = String(result && result.updateInfo && result.updateInfo.version || '');
+    if (!latest) return { ok: false, configured: true, current: LAUNCHER_VERSION, message: 'No se encontró ninguna versión publicada.' };
+    const available = isNewer(latest, LAUNCHER_VERSION);
+    return { ok: true, configured: true, current: LAUNCHER_VERSION, latest, available, notes: available ? await releaseNotes(latest) : '' };
+  } catch (error) {
+    return { ok: false, configured: true, current: LAUNCHER_VERSION, message: `No se pudo comprobar (${String(error && error.message || error).split('\n')[0].slice(0, 160)}).` };
+  }
+}
+let installedBusy = false;
+async function applyInstalled() {
+  if (installedBusy) return { ok: false, message: 'Ya se está actualizando.' };
+  installedBusy = true;
+  const u = getInstalledUpdater();
+  const onProgress = p => notifyLauncher('update:progress', `Descargando… ${Math.round(p && p.percent || 0)}%`);
+  try {
+    const check = await u.checkForUpdates();
+    const latest = String(check && check.updateInfo && check.updateInfo.version || '');
+    if (!isNewer(latest, LAUNCHER_VERSION)) return { ok: false, message: 'No se pudo actualizar: ya tienes la última versión.' };
+    notifyLauncher('update:progress', 'Descargando…');
+    u.on('download-progress', onProgress);
+    await u.downloadUpdate();
+    notifyLauncher('update:progress', 'Listo. Instalando y reiniciando…');
+    setTimeout(() => { isQuitting = true; stopAutoclick(); try { u.quitAndInstall(true, true); } catch (_) { app.relaunch(); app.exit(0); } }, 1200);
+    return { ok: true, version: latest };
+  } catch (error) {
+    return { ok: false, message: `No se pudo actualizar: ${String(error && error.message || error).split('\n')[0].slice(0, 160)}.` };
+  } finally {
+    u.removeListener('download-progress', onProgress);
+    installedBusy = false;
+  }
+}
+ipcMain.handle('update:check', () => (app.isPackaged ? checkInstalled() : updater.check()));
 ipcMain.handle('update:apply', async () => {
-  if (app.isPackaged) return { ok: false, message: 'Esta instalación no admite actualizaciones automáticas.' };
   if (games.size) return { ok: false, message: 'Cierra BoomBang antes de actualizar.' };
+  if (app.isPackaged) return applyInstalled();
   const r = await updater.apply(step => notifyLauncher('update:progress', step));
   if (r.ok) setTimeout(() => { isQuitting = true; stopAutoclick(); app.relaunch(); app.exit(0); }, 1200);
   return r;
 });
 function scheduleUpdateCheck() {
-  if (app.isPackaged || readSettings().autoUpdateCheck === false) return;
-  setTimeout(async () => { try { const r = await updater.check(); if (r.ok && r.available) notifyLauncher('update:available', r); } catch (_) {} }, 4000);
+  if (readSettings().autoUpdateCheck === false) return;
+  setTimeout(async () => {
+    try { const r = app.isPackaged ? await checkInstalled() : await updater.check(); if (r.ok && r.available) notifyLauncher('update:available', r); } catch (_) {}
+  }, 4000);
 }
 
 app.whenReady().then(() => { ensureDataRoot(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); scheduleUpdateCheck(); startServerMonitor(); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
