@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, shell, safeStorage, net, Tray, Menu, dialog, screen: electronScreen } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell, safeStorage, net, Tray, Menu, dialog, screen: electronScreen, nativeImage } = require('electron');
 const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -36,6 +36,8 @@ const LAUNCHER_VERSION = app.getVersion();
 const { pingHost, RttTracker, DEFAULT_PING_HOST } = require('./rtt');
 const { createUpdater, isNewer, notesFor, readConfig } = require('./updater');
 const { normalizeConfig: normalizeDropAlert } = require('./drops');
+const visual = require('./visual');
+const { Worker: ThreadWorker } = require('worker_threads');
 
 const DEFAULT_SETTINGS = {
   autoLogin: true,
@@ -688,9 +690,10 @@ ipcMain.handle('alerts:save', (_e, patch) => {
     if (!next.items.some(i => i.src === p.addItem.src)) next.items.push({ src: p.addItem.src, cls: p.addItem.cls, label: `Objeto ${next.items.length + 1}` });
     next.enabled = true;                           // teaching an object turns the alert on
   }
+  if ('sensitivity' in p) next.sensitivity = p.sensitivity;
   const saved = normalizeDropAlert(next);
   writeSettings({ ...readSettings(), dropAlert: saved });
-  broadcastDropAlert();
+  broadcastDropAlert(); cleanupTemplates(saved); syncVisualWatch();
   return saved;
 });
 // A learned object appeared: blink the taskbar button if that window is not in front.
@@ -724,6 +727,122 @@ ipcMain.handle('alerts:learn', async (_e, profileId) => {
   if (!game || game.isDestroyed()) return false;
   try { game.show(); game.focus(); } catch (_) {}
   return sendClientCommand(id, { type: 'drop-alert-learn' });
+});
+// ---- Objects painted by the game (canvas): found by their SHAPE in a small copy of the window (visual.js) ----
+const TEMPLATE_DIR = path.join(DATA_ROOT, 'drop-templates');
+const templateFile = id => path.join(TEMPLATE_DIR, `${id}.png`);
+const visCache = new Map();             // id -> prepared template
+const visHigh = new Map();              // `${profile}:${id}` -> currently matched (rings only on the way up)
+const visLastRing = new Map();          // profile -> time of last chime
+let visWorker = null, visTimer = null, visBusy = false, visJob = 0;
+const visPending = new Map();
+function loadTemplate(id) {
+  if (visCache.has(id)) return visCache.get(id);
+  try {
+    const img = nativeImage.createFromPath(templateFile(id));
+    if (img.isEmpty()) return null;
+    const { width, height } = img.getSize();
+    const t = visual.prepTemplate(visual.edges(visual.grayDown(img.toBitmap(), width, height)));
+    visCache.set(id, t);
+    return t;
+  } catch (_) { return null; }
+}
+function saveTemplateImage(img) {
+  const { width, height } = img.getSize();
+  if (width < 16 || height < 16) throw new Error('La imagen es demasiado pequeña.');
+  if (width > 400 || height > 400) throw new Error('Recorta solo el objeto (máximo 400×400 píxeles).');
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  fs.mkdirSync(TEMPLATE_DIR, { recursive: true });
+  fs.writeFileSync(templateFile(id), img.toPNG());
+  if (!loadTemplate(id)) { try { fs.unlinkSync(templateFile(id)); } catch (_) {} throw new Error('En esa imagen no hay forma suficiente para reconocerla.'); }
+  return id;
+}
+function addVisualItem(id) {
+  const cur = dropAlertConfig();
+  const saved = normalizeDropAlert({ ...cur, enabled: true, items: [...cur.items, { type: 'visual', id, label: `Objeto ${cur.items.length + 1}` }] });
+  writeSettings({ ...readSettings(), dropAlert: saved });
+  broadcastDropAlert(); syncVisualWatch();
+  return saved;
+}
+function cleanupTemplates(cfg) {
+  const keep = new Set(cfg.items.filter(i => i.type === 'visual').map(i => i.id));
+  try { for (const f of fs.readdirSync(TEMPLATE_DIR)) { const id = f.replace(/\.png$/, ''); if (!keep.has(id)) { fs.unlinkSync(path.join(TEMPLATE_DIR, f)); visCache.delete(id); } } } catch (_) {}
+}
+function runMatch(frame, templates) {
+  return new Promise(resolve => {
+    if (!visWorker) {
+      try {
+        visWorker = new ThreadWorker(visual.WORKER_SOURCE, { eval: true });
+        visWorker.on('message', m => { const r = visPending.get(m.job); visPending.delete(m.job); if (r) r(m.results); });
+        const reset = () => { visWorker = null; for (const r of visPending.values()) r([]); visPending.clear(); };
+        visWorker.on('error', reset); visWorker.on('exit', reset);
+      } catch (_) { visWorker = null; return resolve([]); }
+    }
+    const job = ++visJob; visPending.set(job, resolve);
+    visWorker.postMessage({ job, frame: frame.data.buffer, w: frame.w, h: frame.h,
+      templates: templates.map(t => ({ id: t.id, data: t.t.data.slice().buffer, w: t.t.w, h: t.t.h, norm: t.t.norm })) }, [frame.data.buffer]);
+  });
+}
+function ringFromMain(profileId, label, volume) {
+  const game = getGame(profileId);
+  const now = Date.now();
+  if (now - (visLastRing.get(profileId) || 0) < 4000) return;
+  visLastRing.set(profileId, now);
+  if (!game || game.isDestroyed()) return;
+  if (!game.isFocused()) {
+    try { game.flashFrame(true); if (!game.__bbFlashing) { game.__bbFlashing = true; game.once('focus', () => { game.__bbFlashing = false; try { game.flashFrame(false); } catch (_) {} }); } } catch (_) {}
+  }
+  if (game.webContents.isAudioMuted()) notifyLauncher('alerts:chime', volume);
+  sendClientCommand(profileId, { type: 'drop-alert-ring', label, volume, sound: !game.webContents.isAudioMuted() }).catch(() => {});
+}
+async function visualTick() {
+  if (visBusy) return;
+  const cfg = dropAlertConfig();
+  const tpls = cfg.items.filter(i => i.type === 'visual').map(i => ({ id: i.id, label: i.label, t: loadTemplate(i.id) })).filter(x => x.t);
+  if (!cfg.enabled || !tpls.length) return;
+  visBusy = true;
+  const thr = visual.THRESHOLDS[cfg.sensitivity] || visual.THRESHOLDS.media;
+  try {
+    for (const [id, game] of games) {
+      if (!game || game.isDestroyed() || game.isMinimized() || !game.isVisible()) continue;
+      let img; try { img = await game.webContents.capturePage(); } catch (_) { continue; }
+      if (!img || img.isEmpty()) continue;
+      const { width, height } = img.getSize();
+      const frame = visual.edges(visual.grayDown(img.toBitmap(), width, height));
+      const results = await runMatch(frame, tpls);
+      for (const r of results) {
+        const key = `${id}:${r.id}`, was = visHigh.get(key) === true;
+        if (r.score >= thr && !was) { visHigh.set(key, true); const t = tpls.find(x => x.id === r.id); ringFromMain(id, t ? t.label : 'Objeto', cfg.volume); }
+        else if (r.score < visual.REARM && was) visHigh.set(key, false);
+      }
+    }
+  } finally { visBusy = false; }
+}
+function syncVisualWatch() {
+  const cfg = dropAlertConfig();
+  const need = cfg.enabled && cfg.items.some(i => i.type === 'visual');
+  if (need && !visTimer) visTimer = setInterval(() => { visualTick().catch(() => {}); }, 1000);
+  if (!need && visTimer) { clearInterval(visTimer); visTimer = null; if (visWorker) { try { visWorker.terminate(); } catch (_) {} visWorker = null; } }
+}
+ipcMain.handle('alerts:learn-visual', async (_e, profileId, point) => {
+  const game = getGame(String(profileId || ''));
+  if (!game || game.isDestroyed() || !point) return null;
+  const b = game.getContentBounds();
+  const x = Math.round(Number(point.screenX) - b.x), y = Math.round(Number(point.screenY) - b.y), R = 40;
+  if (!(x >= 0 && y >= 0 && x < b.width && y < b.height)) return null;
+  const rect = { x: Math.max(0, x - R), y: Math.max(0, y - R), width: Math.min(2 * R, b.width - Math.max(0, x - R)), height: Math.min(2 * R, b.height - Math.max(0, y - R)) };
+  const img = await game.webContents.capturePage(rect);
+  return addVisualItem(saveTemplateImage(img));
+});
+ipcMain.handle('alerts:add-image', (_e, dataUrl) => {
+  if (typeof dataUrl !== 'string' || !/^data:image\/(png|jpe?g|webp|bmp);base64,/i.test(dataUrl) || dataUrl.length > 3 * 1024 * 1024) throw new Error('Formato de imagen no válido.');
+  const img = nativeImage.createFromDataURL(dataUrl);
+  if (img.isEmpty()) throw new Error('No se pudo leer la imagen.');
+  return addVisualItem(saveTemplateImage(img));
+});
+ipcMain.handle('alerts:template', (_e, id) => {
+  if (!/^[a-z0-9]{6,24}$/.test(String(id || ''))) return '';
+  try { const img = nativeImage.createFromPath(templateFile(String(id))); return img.isEmpty() ? '' : img.toDataURL(); } catch (_) { return ''; }
 });
 ipcMain.handle('server:check', () => broadcastServerStatus());
 ipcMain.handle('news:fetch', () => fetchNews());
@@ -1317,7 +1436,7 @@ function scheduleUpdateCheck() {
   }, 4000);
 }
 
-app.whenReady().then(() => { ensureDataRoot(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); scheduleUpdateCheck(); startServerMonitor(); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
+app.whenReady().then(() => { ensureDataRoot(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); syncVisualWatch(); scheduleUpdateCheck(); startServerMonitor(); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
 app.on('before-quit', () => {
   isQuitting = true; stopAutoclick(); if (serverTimer) clearInterval(serverTimer); try { tray?.destroy(); } catch (_) {} tray = null;
 });

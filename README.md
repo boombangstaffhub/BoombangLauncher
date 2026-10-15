@@ -114,7 +114,7 @@ El launcher se actualiza solo:
 | `index.html`, `renderer.js`, `style.css`, `galaxy.js` | Ventana del launcher y sus diseños animados |
 | `game-preload.js` | Se ejecuta dentro del juego: auto-login, vista del cliente, ping |
 | `smartbar.js` | La Smart Bar (botones, upper rápido, atajos) |
-| `drops.js` | Aviso de objetos |
+| `drops.js`, `visual.js` | Aviso de objetos (por imagen o por forma) |
 | `client-hub.js`, `client-hub.css`, `hub-window.html` | El BB Hub |
 | `rtt.js` | Medición del ping |
 | `autoclick.cs`, `autoclick.ps1` | El autoclick |

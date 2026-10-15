@@ -37,6 +37,9 @@ function visible(el) {
 // What did the user click? The clicked element or one of its closest parents that shows a picture.
 function signatureFromPath(path) {
   for (const el of path.slice(0, 6)) {
+    if (!el || el.nodeType !== 1) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 320 || r.height > 320) continue;    // the room background is not "the object"
     const src = imageOf(el);
     if (src && !/^data:/i.test(src)) {
       // A picture set by a CSS class (not inline) is found later through that class.
@@ -55,13 +58,21 @@ function describe(path) {
   }).join('\n');
 }
 
-const DEFAULT_CONFIG = { enabled: false, volume: 40, items: [] };
+const DEFAULT_CONFIG = { enabled: false, volume: 40, sensitivity: 'media', items: [] };
 const MAX_ITEMS = 12;
 function normalizeConfig(raw) {
   const c = raw && typeof raw === 'object' ? raw : {};
   const items = [];
   const seen = new Set();
   for (const it of Array.isArray(c.items) ? c.items : []) {
+    if (it && it.type === 'visual') {                 // learned from a picture (objects painted on a canvas)
+      const id = String(it.id || '');
+      if (!/^[a-z0-9]{6,24}$/.test(id) || seen.has(id)) continue;
+      seen.add(id);
+      items.push({ type: 'visual', id, label: String(it.label || '').trim().slice(0, 24) || `Objeto ${items.length + 1}` });
+      if (items.length >= MAX_ITEMS) break;
+      continue;
+    }
     const src = cleanSrc(it && it.src);
     if (!src || /^data:/i.test(src) || src.length > 500 || seen.has(src)) continue;
     seen.add(src);
@@ -70,7 +81,8 @@ function normalizeConfig(raw) {
     if (items.length >= MAX_ITEMS) break;
   }
   const volume = Math.max(0, Math.min(100, Math.round(Number(c.volume))));
-  return { enabled: Boolean(c.enabled), volume: Number.isFinite(volume) ? volume : DEFAULT_CONFIG.volume, items };
+  const sensitivity = ['alta', 'media', 'baja'].includes(c.sensitivity) ? c.sensitivity : 'media';
+  return { enabled: Boolean(c.enabled), volume: Number.isFinite(volume) ? volume : DEFAULT_CONFIG.volume, sensitivity, items };
 }
 
 // A short, soft two-note chime (no samples, nothing loud).
@@ -111,13 +123,14 @@ function create(api) {
   function candidates() {
     const out = [...document.images];
     for (const el of document.querySelectorAll('[style*="background"]')) out.push(el);
-    for (const it of cfg.items) if (it.cls) for (const el of document.getElementsByClassName(it.cls)) out.push(el);
+    for (const it of cfg.items) if (it.src && it.cls) for (const el of document.getElementsByClassName(it.cls)) out.push(el);
     return out;
   }
   function scan() {
     lastScan = performance.now();
     if (!cfg.enabled || !cfg.items.length || learning) return;
-    const wanted = new Set(cfg.items.map(i => i.src));
+    const wanted = new Set(cfg.items.filter(i => i.src).map(i => i.src));
+    if (!wanted.size) return;
     let hit = null;
     for (const el of candidates()) {
       if (el.closest && el.closest('#__bb_smart_bar,#__bb_hub_root,#__bb_drop_banner')) continue;
@@ -191,11 +204,20 @@ function create(api) {
       e.stopImmediatePropagation(); e.preventDefault();       // the click must not reach the game (no walking, no picking up)
       done = true;
       const path = (e.composedPath && e.composedPath()) || [e.target];
-      const sig = signatureFromPath(path);
+      // Everything under the pointer, also what sits below an invisible click layer.
+      let under = [];
+      try { under = document.elementsFromPoint(e.clientX, e.clientY) || []; } catch (_) {}
+      under = under.filter(el => { const r = el.getBoundingClientRect(); return r.width <= 320 && r.height <= 320 && !(el.id && /^__bb_/.test(el.id)); });
+      const sig = signatureFromPath(path) || signatureFromPath(under);
       setTimeout(stopLearning, 400);
       if (!sig) {
-        try { await ipc.invoke('alerts:debug', describe(path)); } catch (_) {}
-        api.notice('No he podido reconocer ese objeto. Se ha guardado drop-debug.txt en la carpeta de datos del launcher.');
+        // The game paints it (canvas): learn it from a picture of that spot instead.
+        try { await ipc.invoke('alerts:debug', describe(path) + '\n--- debajo ---\n' + describe(under)); } catch (_) {}
+        try {
+          const saved = await ipc.invoke('alerts:learn-visual', api.getProfileId(), { screenX: e.screenX, screenY: e.screenY });
+          if (saved && saved.items) { setConfig(saved); api.notice('✓ Objeto aprendido por su forma. Sonará cuando vuelva a aparecer.'); return; }
+        } catch (_) {}
+        api.notice('No he podido aprender ese objeto. Prueba con «Subir imagen» en el BB Hub → Avisos.');
         return;
       }
       try {
@@ -214,6 +236,7 @@ function create(api) {
     if (!cmd || !inGame()) return;
     if (cmd.type === 'drop-alert-config') setConfig(cmd.config);
     else if (cmd.type === 'drop-alert-learn') learn();
+    else if (cmd.type === 'drop-alert-ring') { if (cmd.sound !== false) chime(cmd.volume != null ? cmd.volume : cfg.volume); api.notice(`🔔 ${cmd.label || 'Objeto'}`); }
     else if (cmd.type === 'drop-alert-test') { chime(cmd.volume != null ? cmd.volume : cfg.volume); api.notice('🔔 Prueba de sonido'); }
   }
 
