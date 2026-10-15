@@ -33,10 +33,15 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if gh release view "v$VERSION" >/dev/null 2>&1; then
-            echo "Release v$VERSION already exists, nothing to do."
+          ASSETS=$(gh release view "v$VERSION" --json assets --jq '.assets[].name' 2>/dev/null || true)
+          if echo "$ASSETS" | grep -qx 'latest.yml' && echo "$ASSETS" | grep -qx 'BoomBang-Launcher-Setup.exe'; then
+            echo "Release v$VERSION already published, nothing to do."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
+            if gh release view "v$VERSION" >/dev/null 2>&1; then
+              echo "Removing incomplete release v$VERSION"
+              gh release delete "v$VERSION" --yes --cleanup-tag
+            fi
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -44,8 +49,20 @@ jobs:
         if: steps.v.outputs.skip == 'false'
         run: npm ci --no-audit --no-fund
 
-      - name: Build and publish
+      - name: Build installer
         if: steps.v.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish always
+        run: npx electron-builder --win --publish never
+
+      - name: Publish release
+        if: steps.v.outputs.skip == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.v.outputs.version }}"
+          ls -la dist
+          node -e "const {notesFor}=require('./updater');process.stdout.write(notesFor(require('fs').readFileSync('CHANGELOG.md','utf8'),'$VERSION')||'Versión $VERSION')" > notes.md
+          gh release create "v$VERSION" --title "BoomBang Launcher $VERSION" --notes-file notes.md --target "$GITHUB_SHA" \
+            "dist/BoomBang-Launcher-Setup.exe" "dist/BoomBang-Launcher-Setup.exe.blockmap" "dist/latest.yml"
