@@ -217,3 +217,11 @@ footer{display:flex;justify-content:space-between;margin-top:24px;padding-top:14
 .update-banner.failed{border-color:rgba(255,110,140,.6)}
 @keyframes updSpin{to{transform:rotate(360deg)}}
 @media (max-width:760px){.update-banner{flex-wrap:wrap}.update-actions{width:100%;justify-content:flex-start}}
+
+/* ---------------------------------------------------------------- autoclick interval */
+.ac-interval{display:flex;align-items:center;gap:8px;flex:none}
+.ac-interval input[type=range]{width:130px;padding:0;border:0;background:transparent;accent-color:var(--a);box-shadow:none}
+.ac-interval input[type=number]{width:74px;padding:8px 10px;text-align:right}
+.ac-interval b{font-size:12px;color:var(--muted)}
+.ac-interval-row.off{opacity:.45}
+@media (max-width:560px){.ac-interval-row{flex-wrap:wrap}.ac-interval{width:100%}.ac-interval input[type=range]{flex:1}}

@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.1.0
+
+- Autoclick: nuevo ajuste **Intervalo del autoclick** en Ajustes (de 1 a 1000 ms). Si el PC se traba con el autoclick, súbelo (por ejemplo 30–100 ms).
+
 ## 1.0.0
 
 Primera versión pública.

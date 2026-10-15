@@ -71,6 +71,8 @@ Actívalo en **Ajustes → Autoclick**. Después:
 - **F1**: empieza (6 clics por vuelta en el punto guardado).
 - **F2**: para.
 
+Si el PC se traba, sube el **Intervalo del autoclick** en Ajustes (1 ms es lo más rápido; 30–100 ms va bien en PCs más modestos).
+
 Usa Windows PowerShell, que viene con Windows. Algunos antivirus pueden avisar la primera vez porque es un programa que hace clics; el código está en [`autoclick.cs`](autoclick.cs).
 
 ![Diseños](docs/disenos.jpg)
