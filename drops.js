@@ -65,6 +65,15 @@ function normalizeConfig(raw) {
   const items = [];
   const seen = new Set();
   for (const it of Array.isArray(c.items) ? c.items : []) {
+    if (it && it.type === 'pixi') {                   // recognised by the name of its picture inside the game engine
+      const key = String(it.key || '').slice(0, 300);
+      if (!key || seen.has('p:' + key)) continue;
+      seen.add('p:' + key);
+      const fam = String(it.family || '').slice(0, 300);
+      items.push({ type: 'pixi', key, family: fam, wide: Boolean(it.wide && fam), label: String(it.label || '').trim().slice(0, 24) || `Objeto ${items.length + 1}` });
+      if (items.length >= MAX_ITEMS) break;
+      continue;
+    }
     if (it && it.type === 'visual') {                 // learned from a picture (objects painted on a canvas)
       const id = String(it.id || '');
       if (!/^[a-z0-9]{6,24}$/.test(id) || seen.has(id)) continue;
@@ -120,6 +129,38 @@ function create(api) {
   const inGame = () => (typeof api.isGameFrame === 'function' ? !!api.isGameFrame() : true);
   const COOLDOWN = 4000;
 
+  // ---- bridge with pixi-hook.js (runs inside the game page, reads the PixiJS scene) ----
+  let pixi = { ok: false, pixi: false, how: '' }, pixiLearnWait = null;
+  const toPixi = msg => { try { document.dispatchEvent(new CustomEvent('__bb_pixi_in', { detail: JSON.stringify(msg) })); } catch (_) {} };
+  function sendWatch() {
+    const its = cfg.enabled ? cfg.items.filter(i => i.type === 'pixi') : [];
+    toPixi({ type: 'watch', keys: its.filter(i => !i.wide).map(i => i.key), families: its.filter(i => i.wide).map(i => i.family) });
+  }
+  function onPixi(e) {
+    let m; try { m = JSON.parse(e.detail); } catch (_) { return; }
+    if (m.type === 'status') {
+      const changed = m.ok !== pixi.ok;
+      pixi = { ok: Boolean(m.ok), pixi: Boolean(m.pixi), how: String(m.how || '') };
+      if (changed) { ipc.invoke('alerts:pixi-status', api.getProfileId(), pixi).catch(() => {}); if (pixi.ok) sendWatch(); }
+    } else if (m.type === 'hit') {
+      const it = cfg.items.find(i => i.type === 'pixi' && (i.key === m.key || (i.wide && i.family === m.key)));
+      if (it && cfg.enabled && !learning) alert(it);
+    } else if (m.type === 'learned') {
+      if (pixiLearnWait) { const r = pixiLearnWait; pixiLearnWait = null; r(m); }
+    } else if (m.type === 'probe') {
+      const txt = `PIXI encontrado: ${m.pixi ? 'sí' : 'no'} · escena: ${m.ok ? 'sí' : 'no'} (${m.how || '-'}) · versión: ${m.version || '-'}\n` +
+        `Sprites visibles: ${m.total}\n\n${(m.list || []).join('\n')}`;
+      ipc.invoke('alerts:debug', txt, 'pixi').then(() => api.notice('Diagnóstico guardado (pixi-probe.txt)')).catch(() => {});
+    }
+  }
+  function askPixiLearn(x, y) {
+    return new Promise(resolve => {
+      pixiLearnWait = resolve;
+      toPixi({ type: 'learn', x, y });
+      setTimeout(() => { if (pixiLearnWait === resolve) { pixiLearnWait = null; resolve({ ok: false }); } }, 500);
+    });
+  }
+
   function candidates() {
     const out = [...document.images];
     for (const el of document.querySelectorAll('[style*="background"]')) out.push(el);
@@ -165,11 +206,14 @@ function create(api) {
     });
     observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'class', 'hidden'] });
     scanTimer = setInterval(scan, 700);      // also catches objects that only move or fade in through inline styles
+    document.addEventListener('__bb_pixi_out', onPixi);
+    try { if (typeof api.injectMainWorld === 'function') api.injectMainWorld(require('./pixi-hook').SOURCE); } catch (_) {}
     ipc.invoke('alerts:get').then(c => setConfig(c)).catch(() => {});
   }
   function setConfig(next) {
     cfg = normalizeConfig(next);
     shown = new WeakMap(); primed = false;
+    sendWatch();
     scan();
   }
 
@@ -203,10 +247,23 @@ function create(api) {
       if (!learning || done || ours(e)) return;              // clicks on the Hub / Smart Bar are not the object
       e.stopImmediatePropagation(); e.preventDefault();       // the click must not reach the game (no walking, no picking up)
       done = true;
+      // Read everything about the click NOW (after an await the event no longer has its path).
       const path = (e.composedPath && e.composedPath()) || [e.target];
-      // Everything under the pointer, also what sits below an invisible click layer.
       let under = [];
       try { under = document.elementsFromPoint(e.clientX, e.clientY) || []; } catch (_) {}
+      const screenPt = { screenX: e.screenX, screenY: e.screenY };
+      // 1) Ask the game engine which object is under the pointer (by the name of its picture).
+      const px = pixi.ok ? await askPixiLearn(e.clientX, e.clientY) : null;
+      if (px && px.ok && px.key) {
+        setTimeout(stopLearning, 400);
+        try {
+          const saved = await ipc.invoke('alerts:save', { addItem: { type: 'pixi', key: px.key, family: px.family } });
+          if (saved) setConfig(saved);
+          api.notice('✓ Objeto aprendido. Sonará cuando vuelva a aparecer.');
+        } catch (_) { api.notice('No se pudo guardar el objeto.'); }
+        return;
+      }
+      // Everything under the pointer, also what sits below an invisible click layer.
       under = under.filter(el => { const r = el.getBoundingClientRect(); return r.width <= 320 && r.height <= 320 && !(el.id && /^__bb_/.test(el.id)); });
       const sig = signatureFromPath(path) || signatureFromPath(under);
       setTimeout(stopLearning, 400);
@@ -214,7 +271,7 @@ function create(api) {
         // The game paints it (canvas): learn it from a picture of that spot instead.
         try { await ipc.invoke('alerts:debug', describe(path) + '\n--- debajo ---\n' + describe(under)); } catch (_) {}
         try {
-          const saved = await ipc.invoke('alerts:learn-visual', api.getProfileId(), { screenX: e.screenX, screenY: e.screenY });
+          const saved = await ipc.invoke('alerts:learn-visual', api.getProfileId(), screenPt);
           if (saved && saved.items) { setConfig(saved); api.notice('✓ Objeto aprendido por su forma. Sonará cuando vuelva a aparecer.'); return; }
         } catch (_) {}
         api.notice('No he podido aprender ese objeto. Prueba con «Subir imagen» en el BB Hub → Avisos.');
@@ -237,10 +294,11 @@ function create(api) {
     if (cmd.type === 'drop-alert-config') setConfig(cmd.config);
     else if (cmd.type === 'drop-alert-learn') learn();
     else if (cmd.type === 'drop-alert-ring') { if (cmd.sound !== false) chime(cmd.volume != null ? cmd.volume : cfg.volume); api.notice(`🔔 ${cmd.label || 'Objeto'}`); }
+    else if (cmd.type === 'drop-alert-probe') toPixi({ type: 'probe' });
     else if (cmd.type === 'drop-alert-test') { chime(cmd.volume != null ? cmd.volume : cfg.volume); api.notice('🔔 Prueba de sonido'); }
   }
 
-  return { start, scan, learn, stopLearning, handleCommand, setConfig, config: () => cfg, _test: { imageOf, signatureFromPath, visible } };
+  return { start, scan, learn, stopLearning, handleCommand, setConfig, config: () => cfg, pixiState: () => pixi, _test: { imageOf, signatureFromPath, visible } };
 }
 
 module.exports = { create, chime, normalizeConfig, cleanSrc, DEFAULT_CONFIG, MAX_ITEMS };

@@ -139,3 +139,4 @@
 .hub-section.ac-off{opacity:.5}
 .al-thumb{width:42px;height:42px;flex:none;object-fit:contain;border-radius:10px;border:1px solid rgba(200,185,255,.3);background:rgba(0,0,0,.25)}
 .al-live{font-weight:800;color:var(--bb-muted)}.al-live.near{color:#ffd166}.al-live.hit{color:#5dffa0}
+.al-conn{font-weight:700}.al-conn.ok{color:#5dffa0}.al-conn.no{color:#ffd166}.al-wide{display:inline-flex;align-items:center;gap:4px;cursor:pointer}.al-wide input{margin:0}

@@ -173,25 +173,28 @@
     const rs=q('#acKeysReset');if(rs)rs.onclick=()=>{stopAcCapture(false);acSave({keys:null},'Teclas restablecidas: F3 · F1 · F2.');};
   }
   // ---------------------------------------------------------------- Avisos: soft chime when a learned object appears
-  let alState=null,alRename=null,alVolTimer=null;
-  async function alLoad(){try{alState=await ipcRenderer.invoke('alerts:get');}catch(_){alState=null;}if(tab==='alerts')render();}
+  let alState=null,alRename=null,alVolTimer=null,alPixi=null;
+  async function alLoad(){try{alState=await ipcRenderer.invoke('alerts:get');}catch(_){alState=null;}try{alPixi=await ipcRenderer.invoke('alerts:pixi-status',profileId);}catch(_){alPixi=null;}if(tab==='alerts')render();}
   async function alSave(patch,msg){try{alState=await ipcRenderer.invoke('alerts:save',patch);if(msg)toast(msg);}catch(e){toast('No se pudo guardar.');}if(tab==='alerts')render();}
   function renderAlerts(){
     if(!alState){setTimeout(alLoad,0);return '<div class="hub-section"><div class="hub-small">Cargando…</div></div>';}
     const items=alState.items||[];
-    const thumb=it=>it.type==='visual'?`<img class="al-thumb" data-al-thumb="${esc(it.id)}" alt="">`:'<span class="sb-chip">🔔</span>';
-    const sub=it=>it.type==='visual'?`Reconocido por su forma · <b class="al-live" data-al-live="${esc(it.id)}">…</b>`:esc(String(it.src).split('/').pop()||it.src);
+    const thumb=it=>it.type==='visual'?`<img class="al-thumb" data-al-thumb="${esc(it.id)}" alt="">`:it.type==='pixi'?'<span class="sb-chip">✓</span>':'<span class="sb-chip">🔔</span>';
+    const sub=it=>it.type==='visual'?`Por su forma (menos fiable) · <b class="al-live" data-al-live="${esc(it.id)}">…</b>`
+      :it.type==='pixi'?`<span title="${esc(it.key)}">${esc(String(it.key).replace(/^anim:/,'').split('#')[0].split('/').pop())}</span>${it.family?` · <label class="al-wide"><input type="checkbox" data-al-wide="${esc(it.key)}" ${it.wide?'checked':''}> también parecidos</label>`:''}`
+      :esc(String(it.src).split('/').pop()||it.src);
     const rows=items.map((it,i)=>alRename===i
       ?`<div class="sb-item">${thumb(it)}<input id="alName" class="hub-input" maxlength="24" value="${esc(it.label)}" style="flex:1"><button class="hub-mini" data-al-name-save="${i}">Guardar</button><button class="hub-mini" data-al-name-cancel>✕</button></div>`
       :`<div class="sb-item">${thumb(it)}<div class="sb-color-name"><strong>${esc(it.label)}</strong><span>${sub(it)}</span></div><button class="hub-mini" data-al-rename="${i}" title="Cambiar nombre">✎</button><button class="hub-mini" data-al-del="${i}" title="Quitar">🗑</button></div>`).join('');
     const hasVisual=items.some(i=>i.type==='visual');
-    return `<div class="hub-section"><div class="hub-label">AVISO DE OBJETOS</div><div class="hub-check"><div><strong>Avisar cuando caiga un objeto</strong><span>Suena un aviso suave y el botón del juego parpadea en la barra de tareas si estás en otra ventana. No recoge nada ni mueve el ratón: solo avisa.</span></div><input id="alEnabled" type="checkbox" ${alState.enabled?'checked':''}></div></div>
+    const conn=!alPixi||alPixi.unknown?'<span class="al-conn">Abre BoomBang con este perfil para conectar.</span>':alPixi.ok?'<span class="al-conn ok">✓ Conectado con el juego: reconoce los objetos por su nombre interno.</span>':'<span class="al-conn no">Buscando el motor del juego…</span>';
+    return `<div class="hub-section"><div class="hub-label">AVISO DE OBJETOS</div><div class="hub-small" style="margin:-2px 0 8px">${conn}</div><div class="hub-check"><div><strong>Avisar cuando caiga un objeto</strong><span>Suena un aviso suave y el botón del juego parpadea en la barra de tareas si estás en otra ventana. No recoge nada ni mueve el ratón: solo avisa.</span></div><input id="alEnabled" type="checkbox" ${alState.enabled?'checked':''}></div></div>
     <div class="hub-section ${alState.enabled?'':'ac-off'}"><div class="hub-label">VOLUMEN</div><div class="ac-speed"><input type="range" id="alVolume" min="0" max="100" step="5" value="${alState.volume}" aria-label="Volumen del aviso"><span id="alVolText">${alState.volume}%</span><button class="hub-mini" id="alTest">▶ Probar</button></div>
       ${hasVisual?`<div class="hub-row" style="margin-top:10px;align-items:center"><span class="hub-small" style="flex:1">Sensibilidad para objetos reconocidos por su forma. Si salta sin que haya nada, bájala; si no salta, súbela.</span><select id="alSens" class="hub-select">${[['alta','Alta'],['media','Media'],['baja','Baja']].map(([v,l])=>`<option value="${v}" ${alState.sensitivity===v?'selected':''}>${l}</option>`).join('')}</select></div>`:''}</div>
-    <div class="hub-section"><div class="hub-label">OBJETOS (${items.length}/12)</div><div class="sb-intro">Dos formas de enseñarle un objeto: cuando caiga uno, pulsa <b>Aprender objeto</b> y haz clic en él dentro del juego (ese clic no llega al juego); o <b>Sube una imagen</b> recortada del objeto. Se reconoce por su forma, no por el color, así que funciona con lluvia, niebla o sombras.</div>
+    <div class="hub-section"><div class="hub-label">OBJETOS (${items.length}/12)</div><div class="sb-intro">Cuando caiga un objeto, pulsa <b>Aprender objeto</b> y haz clic en él dentro del juego (ese clic no llega al juego). El launcher le pregunta al propio juego qué objeto es y lo recuerda por su <b>nombre interno</b>: no mira colores ni formas, así que la lluvia, la niebla o las sombras no le afectan. Marca <b>también parecidos</b> para que avise de cualquier objeto de esa misma familia.</div>
       <div class="sb-items">${rows||'<div class="hub-empty">Aún no hay objetos. Aprende el primero cuando caiga uno.</div>'}</div>
       ${hasVisual?'<div class="hub-small" id="alLiveNote" style="margin-top:8px">El porcentaje es cuánto se parece ahora mismo lo que hay en pantalla a cada objeto. El launcher aprende lo normal en cada sala (tarda unos segundos al entrar) y suena cuando el parecido sube por encima de lo normal; al lado tienes a partir de cuánto sonaría.</div>':''}
-      <div class="hub-row" style="margin-top:10px"><button class="hub-btn primary" id="alLearn" ${items.length>=12?'disabled':''}>🔔 Aprender objeto</button><button class="hub-btn" id="alUpload" ${items.length>=12?'disabled':''}>🖼 Subir imagen</button><input type="file" id="alFile" accept="image/png,image/jpeg,image/webp,image/bmp" multiple hidden></div></div>`;
+      <div class="hub-row" style="margin-top:10px"><button class="hub-btn primary" id="alLearn" ${items.length>=12?'disabled':''}>🔔 Aprender objeto</button><button class="hub-btn" id="alUpload" ${items.length>=12?'disabled':''}>🖼 Subir imagen</button><button class="hub-btn" id="alProbe" title="Guarda en pixi-probe.txt la lista de objetos que hay ahora en la sala">🧪 Diagnóstico</button><input type="file" id="alFile" accept="image/png,image/jpeg,image/webp,image/bmp" multiple hidden></div></div>`;
   }
   let alLiveTimer=null;
   async function alLiveTick(){
@@ -206,6 +209,8 @@
   function bindAlerts(){
     clearInterval(alLiveTimer);alLiveTimer=null;if(root.querySelector('[data-al-live]')){alLiveTick();alLiveTimer=setInterval(alLiveTick,1000);}
     root.querySelectorAll('[data-al-thumb]').forEach(async im=>{try{const u=await ipcRenderer.invoke('alerts:template',im.dataset.alThumb);if(u)im.src=u;}catch(_){}});
+    root.querySelectorAll('[data-al-wide]').forEach(el=>el.onchange=()=>{const items=(alState.items||[]).map(x=>x.type==='pixi'&&x.key===el.dataset.alWide?{...x,wide:el.checked}:x);alSave({items},el.checked?'Avisará también de los objetos parecidos.':'Solo este objeto.');});
+    const probe=q('#alProbe');if(probe)probe.onclick=async()=>{let ok=false;try{ok=await ipcRenderer.invoke('alerts:probe',profileId);}catch(_){}toast(ok?'Diagnóstico guardado en pixi-probe.txt (carpeta de datos).':'Abre BoomBang con este perfil primero.');};
     const sens=q('#alSens');if(sens)sens.onchange=()=>alSave({sensitivity:sens.value},'Sensibilidad: '+sens.options[sens.selectedIndex].text+'.');
     const up=q('#alUpload'),file=q('#alFile');if(up&&file){up.onclick=()=>file.click();file.onchange=async()=>{const files=[...(file.files||[])].slice(0,12);let n=0;for(const f of files){try{const url=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});alState=await ipcRenderer.invoke('alerts:add-image',url);n++;}catch(e){toast(String(e?.message||'No se pudo añadir.').replace(/^Error invoking remote method '[^']+': (Error: )?/,''));}}file.value='';if(n)toast(n===1?'Objeto añadido.':`${n} objetos añadidos.`);render();};}
     const en=q('#alEnabled');if(en)en.onchange=()=>alSave({enabled:en.checked},en.checked?'Aviso activado.':'Aviso desactivado.');

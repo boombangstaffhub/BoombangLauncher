@@ -687,7 +687,10 @@ ipcMain.handle('alerts:save', (_e, patch) => {
   if ('volume' in p) next.volume = p.volume;
   if (Array.isArray(p.items)) next.items = p.items;
   if (p.addItem && typeof p.addItem === 'object') {
-    if (!next.items.some(i => i.src === p.addItem.src)) next.items.push({ src: p.addItem.src, cls: p.addItem.cls, label: `Objeto ${next.items.length + 1}` });
+    if (p.addItem.type === 'pixi') {
+      const key = String(p.addItem.key || '');
+      if (key && !next.items.some(i => i.type === 'pixi' && i.key === key)) next.items.push({ type: 'pixi', key, family: String(p.addItem.family || ''), label: prettyName(key) || `Objeto ${next.items.length + 1}` });
+    } else if (!next.items.some(i => i.src === p.addItem.src)) next.items.push({ src: p.addItem.src, cls: p.addItem.cls, label: `Objeto ${next.items.length + 1}` });
     next.enabled = true;                           // teaching an object turns the alert on
   }
   if ('sensitivity' in p) next.sensitivity = p.sensitivity;
@@ -712,8 +715,24 @@ ipcMain.handle('alerts:drop', (_e, profileId, info) => {
   }
   return { playHere: true };
 });
-ipcMain.handle('alerts:debug', (_e, text) => {
-  try { const file = path.join(DATA_ROOT, 'drop-debug.txt'); fs.writeFileSync(file, `BoomBang Launcher ${LAUNCHER_VERSION}\n${String(text || '').slice(0, 8000)}\n`); return file; } catch (_) { return ''; }
+// "items/halloween/luciernaga_01.png" -> "luciernaga 01"
+function prettyName(key) {
+  const last = String(key || '').replace(/^anim:/, '').split('#')[0].split(/[/\\]/).pop().replace(/\.(png|jpe?g|webp|json)$/i, '');
+  return last.replace(/[_-]+/g, ' ').trim().slice(0, 24);
+}
+const pixiStatus = new Map();   // profile -> { ok, pixi, how }
+ipcMain.handle('alerts:pixi-status', (_e, profileId, st) => {
+  const id = String(profileId || '');
+  if (st && typeof st === 'object') pixiStatus.set(id, { ok: Boolean(st.ok), pixi: Boolean(st.pixi), how: String(st.how || '').slice(0, 60) });
+  return pixiStatus.get(id) || { ok: false, pixi: false, how: '', unknown: !getGame(id) };
+});
+ipcMain.handle('alerts:probe', async (_e, profileId) => {
+  const id = String(profileId || '');
+  if (!getGame(id)) return false;
+  return sendClientCommand(id, { type: 'drop-alert-probe' });
+});
+ipcMain.handle('alerts:debug', (_e, text, kind) => {
+  try { const file = path.join(DATA_ROOT, kind === 'pixi' ? 'pixi-probe.txt' : 'drop-debug.txt'); fs.writeFileSync(file, `BoomBang Launcher ${LAUNCHER_VERSION}\n${String(text || '').slice(0, 20000)}\n`); return file; } catch (_) { return ''; }
 });
 ipcMain.handle('alerts:test', (_e, profileId, volume) => {
   const id = String(profileId || '');

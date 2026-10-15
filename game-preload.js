@@ -924,6 +924,7 @@ const drops = require('./drops').create({
   ipcRenderer,
   getProfileId: () => profileId,
   notice: message => openClientNotice(message),
+  injectMainWorld: code => { try { require('electron').webFrame.executeJavaScript(code); } catch (_) {} },
   isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)
 });
 
