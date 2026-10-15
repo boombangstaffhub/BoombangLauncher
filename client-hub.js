@@ -206,7 +206,15 @@
       else if(id in r.scores){const v=Math.max(0,r.scores[id]),need=(r.need||{})[id]??0.8;txt=`ahora ${Math.round(v*100)}% · suena desde ${Math.round(need*100)}%`;cls=v>=need?'hit':v>=need-0.08?'near':'';}
       el.textContent=txt;el.className='al-live '+cls;});
   }
+  // Objects are learned inside the game window: keep this tab in sync without having to close and reopen the Hub.
+  let alSyncTimer=null;
+  async function alSync(){
+    if(tab!=='alerts'||(!open&&!standalone())||alRename!==null){if(tab!=='alerts'){clearInterval(alSyncTimer);alSyncTimer=null;}return;}
+    try{const st=await ipcRenderer.invoke('alerts:get');const px=await ipcRenderer.invoke('alerts:pixi-status',profileId);
+      if(JSON.stringify(st)!==JSON.stringify(alState)||JSON.stringify(px)!==JSON.stringify(alPixi)){const grew=st&&alState&&st.items.length>alState.items.length;alState=st;alPixi=px;render();if(grew)toast('✓ Objeto aprendido.');}}catch(_){}
+  }
   function bindAlerts(){
+    if(!alSyncTimer&&tab==='alerts')alSyncTimer=setInterval(alSync,1000);
     clearInterval(alLiveTimer);alLiveTimer=null;if(root.querySelector('[data-al-live]')){alLiveTick();alLiveTimer=setInterval(alLiveTick,1000);}
     root.querySelectorAll('[data-al-thumb]').forEach(async im=>{try{const u=await ipcRenderer.invoke('alerts:template',im.dataset.alThumb);if(u)im.src=u;}catch(_){}});
     root.querySelectorAll('[data-al-wide]').forEach(el=>el.onchange=()=>{const items=(alState.items||[]).map(x=>x.type==='pixi'&&x.key===el.dataset.alWide?{...x,wide:el.checked}:x);alSave({items},el.checked?'Avisará también de los objetos parecidos.':'Solo este objeto.');});
