@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.5.0
+
+- **Arreglado el auto-login**: una vez dentro del juego, el launcher ya no lee ningún campo de contraseña. Antes, si ponías la clave de intercambios, podía guardarla como si fuera tu contraseña y en la siguiente sesión no entraba. Ahora solo lee el login de verdad, y vuelve a leerlo únicamente si regresas a la pantalla de inicio de sesión.
+- La ventana de la clave de intercambios ya no esconde la Smart Bar.
+- Nuevo botón **Borrar caché** en Ajustes: borra los archivos temporales del juego de todas tus cuentas sin cerrar ninguna sesión.
+
 ## 1.4.0
 
 - **Screen Marker de Sendero Oculto rehecho**: una sola barra dentro del juego (se arrastra desde ⋮⋮) con lápiz, marcas ✕ ✓ ? ◎, 5 colores, 3 grosores, deshacer y borrar.

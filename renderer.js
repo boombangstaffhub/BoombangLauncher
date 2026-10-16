@@ -259,6 +259,16 @@ $('updateNowBtn').onclick=applyUpdate;
 $('updateLaterBtn').onclick=()=>{ try{ if(pendingUpdate) localStorage.setItem('bb:skipUpdate',pendingUpdate.latest); }catch(_){} hideUpdate(); };
 $('updateNotesBtn').onclick=()=>{ const n=$('updateNotes'); n.classList.toggle('hidden'); $('updateNotesBtn').textContent=n.classList.contains('hidden')?'Novedades':'Ocultar'; };
 $('checkUpdateBtn').onclick=checkUpdates;
+$('clearCacheBtn').onclick=async()=>{
+  const btn=$('clearCacheBtn'); btn.disabled=true; btn.textContent='Borrando…';
+  try{
+    const r=await window.bb.cache.clearAll();
+    const msg=r.freedMB>0?`Caché borrada: ${r.freedMB} MB liberados.`:'Caché borrada.';
+    $('cacheInfo').textContent=msg+(r.gamesOpen?' Recarga BoomBang (↻ en el BB Hub) para que se note.':' Tus sesiones siguen abiertas.');
+    toast(msg);
+  }catch(e){ toast('No se pudo borrar la caché','bad'); }
+  finally{ btn.disabled=false; btn.textContent='🧹 Borrar caché'; }
+};
 window.bb.update.onProgress(step=>{ if(updating) $('updateStatus').textContent=step; });
 window.bb.update.onAvailable(showUpdate);
 

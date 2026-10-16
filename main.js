@@ -912,6 +912,21 @@ ipcMain.handle('app:openPath', (_e, target) => {
   return true;
 });
 ipcMain.handle('cache:clear', async (_e, id) => { await clearProfileSession(id); return true; });
+// "Borrar caché": only the downloaded game files (images, scripts, shaders) of every account.
+// Logins, cookies and settings stay, so nobody is logged out.
+ipcMain.handle('cache:clear-all', async () => {
+  const parts = [...new Set([...readProfiles().map(p => `persist:boombang-profile-${p.id}`)])];
+  const sessions = [session.defaultSession, ...parts.map(p => session.fromPartition(p))].filter(Boolean);
+  let before = 0, after = 0;
+  for (const ses of sessions) {
+    try { before += await ses.getCacheSize(); } catch (_) {}
+    try { await ses.clearCache(); } catch (_) {}
+    try { await ses.clearCodeCaches({}); } catch (_) {}
+    try { await ses.clearStorageData({ storages: ['shadercache', 'cachestorage'] }); } catch (_) {}
+    try { after += await ses.getCacheSize(); } catch (_) {}
+  }
+  return { ok: true, accounts: parts.length, freedMB: Math.max(0, Math.round((before - after) / 1048576 * 10) / 10), gamesOpen: games.size };
+});
 ipcMain.handle('client:get-settings', (_e, id) => getClientSettings(String(id || '')));
 ipcMain.handle('client:save-settings', (_e, id, updates) => writeClientSettings(String(id || ''), updates));
 ipcMain.handle('client:reload', (_e, id) => { const game = games.get(String(id || '')); if (game && !game.isDestroyed()) game.reload(); return true; });

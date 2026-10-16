@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('bb', {
     check: () => ipcRenderer.invoke('server:check'),
     onStatus: cb => { const handler = (_e, data) => cb(data); ipcRenderer.on('server:status', handler); return () => ipcRenderer.removeListener('server:status', handler); }
   },
-  cache: { clear: id => ipcRenderer.invoke('cache:clear', id) },
+  cache: { clear: id => ipcRenderer.invoke('cache:clear', id), clearAll: () => ipcRenderer.invoke('cache:clear-all') },
   news: { fetch: () => ipcRenderer.invoke('news:fetch') },
   launcher: { show: () => ipcRenderer.invoke('launcher:show'), hide: () => ipcRenderer.invoke('launcher:hide') },
   client: { openPanel: id => ipcRenderer.invoke('client:open-panel', id) },

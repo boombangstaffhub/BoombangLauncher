@@ -116,6 +116,33 @@ function loginFieldsPresent() {
   return Boolean(findUsername() && findPassword());
 }
 
+// ---- Which password field is the LOGIN one? ----
+// Inside the game there are other password fields (the exchange security key, for example). Those must never be read
+// as your account: once you are in the game, nothing is captured until the real login screen shows up again.
+let inGameSession = false;
+const LOGIN_PANEL = '#BoomBangLogin, #bbLoginRoot';
+function loginPanel() { return document.querySelector(LOGIN_PANEL); }
+function loginPanelVisible() {
+  const p = loginPanel();
+  if (!p || !visibleElement(p)) return false;
+  const pw = p.querySelector('input[type="password"]');
+  return Boolean(pw && visibleElement(pw));
+}
+function markInGame() { if (!inGameSession) { inGameSession = true; pendingCredentials = null; } }
+// Login fields only inside the login panel (when the game has one); otherwise only before the world is loaded.
+function loginFieldsForCapture() {
+  if (inGameSession) return null;
+  const panel = loginPanel();
+  if (panel) {
+    if (!loginPanelVisible()) return null;
+    const pw = [...panel.querySelectorAll('input[type="password"]')].find(visibleElement);
+    const user = [...panel.querySelectorAll('input:not([type="password"]):not([type="hidden"])')].find(visibleElement);
+    return pw && user ? { user, pw } : null;
+  }
+  const user = findUsername(), pw = findPassword();
+  return user && pw ? { user, pw } : null;
+}
+
 
 async function loadAccountUsername() {
   if (!profileId) return '';
@@ -127,6 +154,7 @@ async function loadAccountUsername() {
 }
 
 function loginVisible() {
+  if (inGameSession) return loginPanelVisible();      // an in-game password box (exchange key...) is not the login
   const password = findPassword();
   if (password) {
     const style = getComputedStyle(password);
@@ -140,6 +168,10 @@ function loginVisible() {
   return false;
 }
 
+// The game world is on screen (big canvas), ignoring login state.
+function worldLoadedRaw() {
+  try { return [...document.querySelectorAll('canvas')].some(c => { const r = c.getBoundingClientRect(); return r.width >= 500 && r.height >= 300; }) && !loginPanelVisible(); } catch (_) { return false; }
+}
 function worldLoaded() {
   if (loginVisible()) return false;
   try {
@@ -154,18 +186,18 @@ function worldLoaded() {
     || Boolean(document.querySelector('#BoomBangContainer #BoomBangAlerts'));
 }
 function captureCredentials() {
-  if (!profileId) return false;
-  const username = findUsername();
-  const password = findPassword();
-  if (!username || !password) return false;
-  const user = String(username.value || '').trim();
-  const pass = String(password.value || '');
+  if (!profileId || inGameSession) return false;
+  const f = loginFieldsForCapture();
+  if (!f) return false;
+  const user = String(f.user.value || '').trim();
+  const pass = String(f.pw.value || '');
   if (!user || !pass) return false;
   pendingCredentials = { username: user, password: pass };
   return true;
 }
 
 async function savePendingAfterSuccess() {
+  if (inGameSession) { pendingCredentials = null; return; }
   if (!pendingCredentials && loginFieldsPresent()) captureCredentials();
   if (saveCheckRunning || !pendingCredentials || !profileId) return;
   saveCheckRunning = true;
@@ -177,6 +209,7 @@ async function savePendingAfterSuccess() {
       try {
         const ok = await ipcRenderer.invoke('auth:save', { profileId, username: creds.username, password: creds.password });
         console.log(`[BB Launcher] login correcto; credenciales guardadas=${ok}`);
+        markInGame();
       } catch (error) {
         console.error('[BB Launcher] no se pudieron guardar credenciales:', error);
       }
@@ -188,7 +221,7 @@ async function savePendingAfterSuccess() {
 }
 
 async function autoLogin() {
-  if (!profileId || autoLoginStarted || !loginVisible()) return;
+  if (!profileId || autoLoginStarted || inGameSession || !loginVisible()) return;
   try {
     const launcherSettings = await ipcRenderer.invoke('settings:get');
     if (launcherSettings && launcherSettings.autoLogin === false) return;
@@ -196,8 +229,8 @@ async function autoLogin() {
   let creds = null;
   try { creds = await ipcRenderer.invoke('auth:get', profileId); } catch (error) { console.error('[BB Launcher] auth:get error', error); return; }
   if (!creds?.username || !creds?.password) return;
-  const username = findUsername();
-  const password = findPassword();
+  const f = loginFieldsForCapture();
+  const username = f && f.user, password = f && f.pw;
   const button = findRealLoginButton();
   if (!username || !password || !button) return;
   const label = textOf(button);
@@ -338,6 +371,7 @@ async function refreshConnectionState() {
   // A visible BoomBang canvas is our authoritative "connected" signal.
   // Ping is a secondary metric and never downgrades a working client.
   if (inWorld) {
+    if (!pendingCredentials) markInGame();          // in the world: stop reading password boxes
     if (!sessionReadySent && profileId) {
       sessionReadySent = true;
       sessionStartedAt = Date.now();
@@ -1011,7 +1045,7 @@ function installOuterGameStyle() {
 
 function startLoginBridge() {
   if (!profileId) return;
-  const capture = () => { try { captureCredentials(); } catch (e) { console.warn('[BB Launcher] captureCredentials failed', e); } };
+  const capture = () => { if (inGameSession) return; try { captureCredentials(); } catch (e) { console.warn('[BB Launcher] captureCredentials failed', e); } };
   const clickHandler = event => {
     const target = event.target?.closest?.('button, input[type="submit"], [role="button"], a');
     if (!target) return;
@@ -1033,6 +1067,9 @@ function startLoginBridge() {
   }, true);
   const run = () => {
     try {
+      // Logged out / kicked back to the real login screen: reading the login is allowed again.
+      if (inGameSession && loginPanelVisible() && !worldLoadedRaw()) inGameSession = false;
+      if (inGameSession) return;
       if (loginVisible()) {
         if (loginFieldsPresent()) capture();
         autoLogin();
@@ -1049,7 +1086,7 @@ function startLoginBridge() {
     observerBusy = true;
     setTimeout(() => {
       observerBusy = false;
-      if (sessionReadySent && !pendingCredentials) { try { loginObserver.disconnect(); } catch (_) {} return; }
+      if (inGameSession) { if (loginPanelVisible()) run(); return; }
       if (loginVisible()) run();
       else if (pendingCredentials) savePendingAfterSuccess();
     }, 250);
