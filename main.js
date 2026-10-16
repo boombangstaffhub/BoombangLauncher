@@ -1291,6 +1291,18 @@ ipcMain.handle('client:panel-action', async (_e, id, action, payload) => {
     case 'reload':
       if (game) game.reload();
       return true;
+    case 'clear-cache': {
+      // Only this account's downloaded game files; the login stays. Then reload so the game fetches fresh files.
+      const ses = session.fromPartition(`persist:boombang-profile-${profileId}`);
+      let before = 0, after = 0;
+      try { before = await ses.getCacheSize(); } catch (_) {}
+      try { await ses.clearCache(); } catch (_) {}
+      try { await ses.clearCodeCaches({}); } catch (_) {}
+      try { await ses.clearStorageData({ storages: ['shadercache', 'cachestorage'] }); } catch (_) {}
+      try { after = await ses.getCacheSize(); } catch (_) {}
+      if (game && !game.isDestroyed()) game.reload();
+      return { ok: true, freedMB: Math.max(0, Math.round((before - after) / 1048576 * 10) / 10) };
+    }
     case 'mute': {
       if (!game) return false;
       const next = typeof payload === 'boolean' ? payload : !game.isAudioMuted();

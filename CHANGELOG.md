@@ -4,7 +4,7 @@
 
 - **Arreglado el auto-login**: una vez dentro del juego, el launcher ya no lee ningún campo de contraseña. Antes, si ponías la clave de intercambios, podía guardarla como si fuera tu contraseña y en la siguiente sesión no entraba. Ahora solo lee el login de verdad, y vuelve a leerlo únicamente si regresas a la pantalla de inicio de sesión.
 - La ventana de la clave de intercambios ya no esconde la Smart Bar.
-- Nuevo botón **Borrar caché** en Ajustes: borra los archivos temporales del juego de todas tus cuentas sin cerrar ninguna sesión.
+- **Borrar caché** en dos sitios, sin cerrar ninguna sesión: en los Ajustes del launcher (launcher + todas tus cuentas) y dentro del juego en el BB Hub → Cliente (esa cuenta, y recarga el juego).
 
 ## 1.4.0
 
