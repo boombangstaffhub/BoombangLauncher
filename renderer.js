@@ -200,18 +200,18 @@ async function openSettings(){
   settings=await window.bb.settings.get();
   $('setAutoLogin').checked=!!settings.autoLogin; $('setAutoclick').checked=settings.autoclickEnabled!==false; $('setHideLauncher').checked=!!settings.hideLauncherOnGameLaunch; $('setRememberSize').checked=!!settings.rememberWindowSize;
   $('setServerCheck').checked=!!settings.checkServerOnStart; $('setStartWindows').checked=!!settings.startWithWindows; $('setMinimizeTray').checked=!!settings.minimizeToTray;
-  $('setAutoUpdate').checked=settings.autoUpdateCheck!==false; $('updateCheckInfo').textContent=appVersion?`Tienes la V${appVersion}.`:'—';
+  $('setAutoUpdate').checked=settings.autoUpdateCheck!==false; $('setForceMotion').checked=settings.forceAnimations!==false; $('updateCheckInfo').textContent=appVersion?`Tienes la V${appVersion}.`:'—';
   renderThemeGrid(); applyTheme(settings.theme);
   $('settingsModal').classList.remove('hidden');
 }
 function closeSettings(){ $('settingsModal').classList.add('hidden'); }
 async function saveSettings(){
-  settings=await window.bb.settings.save({autoLogin:$('setAutoLogin').checked,autoclickEnabled:$('setAutoclick').checked,hideLauncherOnGameLaunch:$('setHideLauncher').checked,rememberWindowSize:$('setRememberSize').checked,checkServerOnStart:$('setServerCheck').checked,startWithWindows:$('setStartWindows').checked,minimizeToTray:$('setMinimizeTray').checked,autoUpdateCheck:$('setAutoUpdate').checked,theme:$('setTheme').value});
+  settings=await window.bb.settings.save({autoLogin:$('setAutoLogin').checked,autoclickEnabled:$('setAutoclick').checked,hideLauncherOnGameLaunch:$('setHideLauncher').checked,rememberWindowSize:$('setRememberSize').checked,checkServerOnStart:$('setServerCheck').checked,startWithWindows:$('setStartWindows').checked,minimizeToTray:$('setMinimizeTray').checked,autoUpdateCheck:$('setAutoUpdate').checked,forceAnimations:$('setForceMotion').checked,theme:$('setTheme').value});
   applyTheme(settings.theme); closeSettings(); toast('Ajustes guardados');
 }
 // ------------------------------------------------------------------ diagnostics / server
 async function openDiagnostics(){
-  try{ const d=await window.bb.diagnostics.get(); $('diagVersion').textContent='V'+d.launcherVersion; $('diagElectron').textContent=d.electron; $('diagChrome').textContent=d.chrome; $('diagNode').textContent=d.node; $('diagPlatform').textContent=`${d.platform} · ${d.arch}`; $('diagProfiles').textContent=String(d.profiles); $('diagGames').textContent=String(d.gamesOpen); $('diagData').textContent=d.dataRoot; $('diagnosticsModal').classList.remove('hidden'); }
+  try{ const d=await window.bb.diagnostics.get(); $('diagVersion').textContent='V'+d.launcherVersion; $('diagElectron').textContent=d.electron; $('diagChrome').textContent=d.chrome; $('diagNode').textContent=d.node; $('diagPlatform').textContent=`${d.platform} · ${d.arch}`; $('diagProfiles').textContent=String(d.profiles); $('diagGames').textContent=String(d.gamesOpen); $('diagData').textContent=d.dataRoot; $('diagMotion').textContent=d.windowsAnimations===false?(d.forceAnimations?'Desactivadas (el launcher las fuerza)':'Desactivadas'):'Activadas'; $('diagGpu').textContent=d.gpu||'—'; $('diagnosticsModal').classList.remove('hidden'); }
   catch(e){ toast('No se pudo abrir diagnóstico','bad'); }
 }
 function applyServer(data){ $('serverDot').className='dot '+(data.online?'online':'offline'); $('serverText').textContent=data.online?'Servidor online':'Servidor no disponible'; $('serverLatency').textContent=data.latency?`${data.latency} ms`:'—'; }

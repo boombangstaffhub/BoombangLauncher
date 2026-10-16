@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, shell, safeStorage, net, Tray, Menu, dialog, screen: electronScreen, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell, safeStorage, net, Tray, Menu, dialog, screen: electronScreen, nativeImage, systemPreferences } = require('electron');
 const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS = {
   autoLogin: true,
   autoclickEnabled: false,   // opt-in: turn it on in Settings
   autoUpdateCheck: true,
+  forceAnimations: true,     // keep animations even if Windows has "animation effects" turned off
   autoclickInterval: 1,
   autoclickKeys: null,       // null = F3 / F1 / F2 (set in the BB Hub)
   dropAlert: null,           // aviso de objetos (BB Hub → Avisos)
@@ -309,6 +310,26 @@ ipcMain.on('__tray_launch', (_event, profileId) => {
   if (profile) createGame(profile).catch(error => dialog.showErrorBox('BoomBang Launcher', error?.message || String(error)));
 });
 
+// ---- Animations ----
+// If Windows has "Efectos de animación" off, Chromium tells every page "reduce motion": the launcher stops its animated
+// background and the game can drop effects (animated frames...). Unless the user turns it off, we tell the pages that
+// motion is fine, so they look the same as on any other PC.
+function windowsReducesMotion() {
+  try { const a = systemPreferences.getAnimationSettings && systemPreferences.getAnimationSettings(); return Boolean(a && (a.prefersReducedMotion || a.shouldRenderRichAnimation === false)); } catch (_) { return false; }
+}
+function applyMotion(wc) {
+  try {
+    if (!wc || wc.isDestroyed() || !wc.debugger) return;
+    const force = readSettings().forceAnimations !== false;
+    const dbg = wc.debugger;
+    if (!dbg.isAttached()) { if (!force) return; dbg.attach('1.3'); }
+    dbg.sendCommand('Emulation.setEmulatedMedia', { features: force ? [{ name: 'prefers-reduced-motion', value: 'no-preference' }] : [] }).catch(() => {});
+  } catch (_) {}
+}
+function applyMotionEverywhere() {
+  for (const w of BrowserWindow.getAllWindows()) { try { applyMotion(w.webContents); } catch (_) {} }
+}
+
 function createLauncher() {
   const settings = readSettings();
   launcherWindow = new BrowserWindow({
@@ -322,6 +343,7 @@ function createLauncher() {
     icon: APP_ICON,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
+  applyMotion(launcherWindow.webContents);
   launcherWindow.loadFile('index.html');
   launcherWindow.on('close', (event) => {
     const settings = readSettings();
@@ -368,6 +390,7 @@ async function createGame(profile) {
     }
   });
 
+  applyMotion(game.webContents);
   games.set(profile.id, game);
   endedClientSessions.delete(String(profile.id));
   startClientSession(profile.id);
@@ -538,7 +561,7 @@ ipcMain.handle('client:copy-settings', async (_e, fromId, toIds, parts) => {
 ipcMain.handle('launcher:show', showLauncher);
 ipcMain.handle('launcher:hide', () => { if (launcherWindow && !launcherWindow.isDestroyed()) launcherWindow.hide(); });
 ipcMain.handle('settings:get', () => readSettings());
-ipcMain.handle('settings:save', (_e, updates) => { const next = { ...readSettings(), ...(updates || {}) }; writeSettings(next); applyStartupSettings(next); refreshTrayMenu(); startServerMonitor(); syncAutoclick(); return next; });
+ipcMain.handle('settings:save', (_e, updates) => { const prev = readSettings(); const next = { ...prev, ...(updates || {}) }; writeSettings(next); applyStartupSettings(next); refreshTrayMenu(); startServerMonitor(); syncAutoclick(); if (prev.forceAnimations !== next.forceAnimations) applyMotionEverywhere(); return next; });
 
 // ---- Autoclick CEROSIETE (hidden): F3 saves the position, F1 starts, F2 stops (keys configurable in the BB Hub) ----
 let autoclickProc = null, autoclickConf = '';
@@ -1149,6 +1172,7 @@ function openHubWindow(profileId, mode = 'window', tab = 'home') {
     if (hubWindows.get(id) === hub) hubWindows.delete(id);
   });
 
+  applyMotion(hub.webContents);
   hub.loadFile(path.join(__dirname, 'hub-window.html'), {
     query: {
       profileId: id,
@@ -1414,7 +1438,10 @@ ipcMain.handle('diagnostics:get', () => ({
   profiles: readProfiles().length,
   gamesOpen: [...games.values()].filter(g => g && !g.isDestroyed()).length,
   dataRoot: DATA_ROOT,
-  sessionData: SESSION_DATA
+  sessionData: SESSION_DATA,
+  windowsAnimations: !windowsReducesMotion(),
+  forceAnimations: readSettings().forceAnimations !== false,
+  gpu: (() => { try { const g = app.getGPUFeatureStatus(); return g.gpu_compositing === 'enabled' || /^enabled/.test(String(g.webgl || '')) ? 'Activada' : `Limitada (${g.gpu_compositing || '?'})`; } catch (_) { return '—'; } })()
 }));
 ipcMain.handle('app:openDataFolder', async () => {
   ensureDataRoot();
