@@ -200,7 +200,7 @@ async function openSettings(){
   settings=await window.bb.settings.get();
   $('setAutoLogin').checked=!!settings.autoLogin; $('setAutoclick').checked=settings.autoclickEnabled!==false; $('setHideLauncher').checked=!!settings.hideLauncherOnGameLaunch; $('setRememberSize').checked=!!settings.rememberWindowSize;
   $('setServerCheck').checked=!!settings.checkServerOnStart; $('setStartWindows').checked=!!settings.startWithWindows; $('setMinimizeTray').checked=!!settings.minimizeToTray;
-  $('setAutoUpdate').checked=settings.autoUpdateCheck!==false; $('setForceMotion').checked=settings.forceAnimations!==false; $('updateCheckInfo').textContent=appVersion?`Tienes la V${appVersion}.`:'—';
+  $('setAutoUpdate').checked=settings.autoUpdateCheck!==false; $('setForceMotion').checked=settings.forceAnimations===true; $('updateCheckInfo').textContent=appVersion?`Tienes la V${appVersion}.`:'—';
   renderThemeGrid(); applyTheme(settings.theme);
   $('settingsModal').classList.remove('hidden');
 }

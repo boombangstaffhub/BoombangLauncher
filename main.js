@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS = {
   autoLogin: true,
   autoclickEnabled: false,   // opt-in: turn it on in Settings
   autoUpdateCheck: true,
-  forceAnimations: true,     // keep animations even if Windows has "animation effects" turned off
+  forceAnimations: false,    // optional: keep animations even if Windows has "animation effects" turned off
   autoclickInterval: 1,
   autoclickKeys: null,       // null = F3 / F1 / F2 (set in the BB Hub)
   dropAlert: null,           // aviso de objetos (BB Hub → Avisos)
@@ -320,7 +320,7 @@ function windowsReducesMotion() {
 function applyMotion(wc) {
   try {
     if (!wc || wc.isDestroyed() || !wc.debugger) return;
-    const force = readSettings().forceAnimations !== false;
+    const force = readSettings().forceAnimations === true;
     const dbg = wc.debugger;
     if (!dbg.isAttached()) { if (!force) return; dbg.attach('1.3'); }
     dbg.sendCommand('Emulation.setEmulatedMedia', { features: force ? [{ name: 'prefers-reduced-motion', value: 'no-preference' }] : [] }).catch(() => {});
@@ -1440,7 +1440,7 @@ ipcMain.handle('diagnostics:get', () => ({
   dataRoot: DATA_ROOT,
   sessionData: SESSION_DATA,
   windowsAnimations: !windowsReducesMotion(),
-  forceAnimations: readSettings().forceAnimations !== false,
+  forceAnimations: readSettings().forceAnimations === true,
   gpu: (() => { try { const g = app.getGPUFeatureStatus(); return g.gpu_compositing === 'enabled' || /^enabled/.test(String(g.webgl || '')) ? 'Activada' : `Limitada (${g.gpu_compositing || '?'})`; } catch (_) { return '—'; } })()
 }));
 ipcMain.handle('app:openDataFolder', async () => {

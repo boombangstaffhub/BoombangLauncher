@@ -4,7 +4,7 @@
 
 - **Arreglado el auto-login**: una vez dentro del juego, el launcher ya no lee ningún campo de contraseña. Antes, si ponías la clave de intercambios, podía guardarla como si fuera tu contraseña y en la siguiente sesión no entraba. Ahora solo lee el login de verdad, y vuelve a leerlo únicamente si regresas a la pantalla de inicio de sesión.
 - La ventana de la clave de intercambios ya no esconde la Smart Bar.
-- **Animaciones siempre activas** (nuevo ajuste, activado por defecto): si Windows tiene desactivados los «Efectos de animación», antes el launcher se quedaba quieto y el juego podía no mostrar efectos (marcos animados…). Ahora se ven igual que en cualquier otro PC.
+- Nuevo ajuste opcional **Animaciones siempre activas** (apagado por defecto): si Windows tiene desactivados los «Efectos de animación», el launcher se queda quieto y el juego puede no mostrar algunos efectos; con este ajuste se ven igual que en cualquier otro PC.
 - Diagnóstico muestra si Windows tiene las animaciones desactivadas y si la aceleración gráfica está activa.
 - **Borrar caché** en dos sitios, sin cerrar ninguna sesión: en los Ajustes del launcher (launcher + todas tus cuentas) y dentro del juego en el BB Hub → Cliente (esa cuenta, y recarga el juego).
 
