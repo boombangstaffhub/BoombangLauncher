@@ -346,6 +346,7 @@ function pushFps(profileId) {
   const game = getGame(String(profileId || ''));
   if (game && !game.isDestroyed()) sendClientCommand(String(profileId), { type: 'fps', fps: fpsFor(game) }).catch(() => {});
 }
+ipcMain.handle('games:count', () => games.size);
 ipcMain.handle('perf:current-fps', (_e, profileId) => { const g = getGame(String(profileId || '')); return g ? fpsFor(g) : 60; });
 ipcMain.handle('perf:get', () => { const st = readSettings(); return { fpsLimit: FPS_CHOICES.includes(Number(st.fpsLimit)) ? Number(st.fpsLimit) : 60, fpsBackground: FPS_CHOICES.includes(Number(st.fpsBackground)) ? Number(st.fpsBackground) : 30, choices: FPS_CHOICES }; });
 ipcMain.handle('perf:save', (_e, patch) => {
@@ -419,6 +420,7 @@ async function createGame(profile) {
 
   applyMotion(game.webContents);
   games.set(profile.id, game);
+  notifyLauncher('games:count', games.size);
   game.on('focus', () => pushFps(profile.id));
   game.on('blur', () => pushFps(profile.id));
   endedClientSessions.delete(String(profile.id));
@@ -464,6 +466,7 @@ async function createGame(profile) {
     focusedUsers.delete(String(profile.id));
     try { endClientSession(profile.id, isClosing ? 'closed' : 'crashed'); } catch (_) {}
     games.delete(profile.id);
+    notifyLauncher('games:count', games.size);
     closingGames.delete(profile.id);
     const hub = hubWindows.get(String(profile.id));
     if (hub && !hub.isDestroyed()) hub.close();

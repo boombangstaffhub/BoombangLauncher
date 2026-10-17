@@ -218,3 +218,6 @@ footer{display:flex;justify-content:space-between;margin-top:24px;padding-top:14
 @keyframes updSpin{to{transform:rotate(360deg)}}
 @media (max-width:760px){.update-banner{flex-wrap:wrap}.update-actions{width:100%;justify-content:flex-start}}
 
+
+/* launcher in the background while a game is open: freeze every animation */
+html.quiet *,html.quiet *::before,html.quiet *::after{animation-play-state:paused!important}

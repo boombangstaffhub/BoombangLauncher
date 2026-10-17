@@ -237,7 +237,9 @@
     const c = document.getElementById('crystal');
     if (c) { c.style.setProperty('--rx', (-ty * 10).toFixed(2) + 'deg'); c.style.setProperty('--ry', (tx * 14).toFixed(2) + 'deg'); }
   }, { passive: true });
-  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  let held = false;                     // paused by the launcher (a game is open and the launcher is not in front)
+  document.addEventListener('visibilitychange', () => (document.hidden || held ? stop() : start()));
+  window.__BB_BG_PAUSE__ = on => { held = Boolean(on); if (held) stop(); else if (!document.hidden) start(); };
   new MutationObserver(() => { if ((document.documentElement.dataset.theme || 'galaxy') !== sceneName) pickScene(); })
     .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   resize(); start();

@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('bb', {
   },
   cache: { clear: id => ipcRenderer.invoke('cache:clear', id), clearAll: () => ipcRenderer.invoke('cache:clear-all') },
   news: { fetch: () => ipcRenderer.invoke('news:fetch') },
-  launcher: { show: () => ipcRenderer.invoke('launcher:show'), hide: () => ipcRenderer.invoke('launcher:hide') },
+  launcher: { show: () => ipcRenderer.invoke('launcher:show'), hide: () => ipcRenderer.invoke('launcher:hide'), gamesOpen: () => ipcRenderer.invoke('games:count'), onGames: cb => { const h = (_e, n) => cb(n); ipcRenderer.on('games:count', h); return () => ipcRenderer.removeListener('games:count', h); } },
   client: { openPanel: id => ipcRenderer.invoke('client:open-panel', id) },
   app: { openExternal: url => ipcRenderer.invoke('app:openExternal', url), openPath: target => ipcRenderer.invoke('app:openPath', target), openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'), version: () => ipcRenderer.invoke('app:version') },
   diagnostics: { get: () => ipcRenderer.invoke('diagnostics:get') },

@@ -283,6 +283,13 @@ function playChime(volume){
 }
 if(window.bb.alerts) window.bb.alerts.onChime(playChime);
 
+// ------------------------------------------------------------------ quiet mode
+// While a game is open and the launcher is not the window in front, its animations stop: all the PC goes to the game.
+let gamesOpen=0;
+function applyQuiet(){ const quiet=gamesOpen>0 && !document.hasFocus(); document.documentElement.classList.toggle('quiet',quiet); try{ window.__BB_BG_PAUSE__ && window.__BB_BG_PAUSE__(quiet); }catch(_){} }
+if(window.bb.launcher && window.bb.launcher.onGames){ window.bb.launcher.onGames(n=>{gamesOpen=Number(n)||0;applyQuiet();}); window.bb.launcher.gamesOpen().then(n=>{gamesOpen=Number(n)||0;applyQuiet();}).catch(()=>{}); }
+window.addEventListener('focus',applyQuiet); window.addEventListener('blur',applyQuiet);
+
 // ------------------------------------------------------------------ boot
 async function load(){
   settings = await window.bb.settings.get();
