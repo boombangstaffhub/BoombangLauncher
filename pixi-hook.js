@@ -155,8 +155,9 @@ function pixiHookMain() {
   }
   function boundsOf(o) { try { const b = o.getBounds(); return { x: b.x, y: b.y, w: b.width, h: b.height }; } catch (_) { return null; } }
 
+  let looks = 0;
   function tick() {
-    if (!H.stage) find();
+    if (!H.stage && (++looks < 120 || looks % 10 === 0)) find();    // first minute every 0.5 s, then every 5 s
     const st = `${Boolean(H.stage)}|${Boolean(H.P)}`;
     if (st !== H.reported) { H.reported = st; emit('status', { ok: Boolean(H.stage), pixi: Boolean(H.P), how: H.how }); }
     if (!H.stage) return;

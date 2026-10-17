@@ -98,8 +98,8 @@ const BAR_CSS = `
 .wrap{position:fixed;z-index:2147483000;font:600 12px/1 "Segoe UI",system-ui,sans-serif;color:#ece8ff;user-select:none;-webkit-user-select:none;pointer-events:none}
 .wrap.hidden{display:none}
 .bar{pointer-events:auto;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:16px;position:relative;overflow:hidden;
-  background:linear-gradient(135deg,rgba(58,40,120,.62),rgba(12,20,52,.60) 55%,rgba(30,24,84,.62));
-  -webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);
+  background:linear-gradient(135deg,rgba(58,40,120,.88),rgba(12,20,52,.86) 55%,rgba(30,24,84,.88));
+  -webkit-
   border:1px solid rgba(190,170,255,.30);
   box-shadow:0 10px 34px rgba(8,4,36,.55),inset 0 1px 0 rgba(255,255,255,.20),inset 0 -1px 0 rgba(120,90,255,.18)}
 .bar::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.16) 50%,transparent 65%);transform:translateX(-120%)}

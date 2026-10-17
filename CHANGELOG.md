@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.6.0
+
+- **Menos lag en eventos con mucha gente.** Nuevo **límite de FPS** (BB Hub → Rendimiento): 60 FPS con la ventana delante y 30 FPS con la ventana detrás o en otra cuenta, configurable (30, 60, 90, 120, 144 o sin límite). Antes el juego dibujaba hasta 240 FPS aunque no hiciera falta.
+- Ya no hay efectos de desenfoque encima del juego (Smart Bar, barra de estado…): se recalculaban en cada fotograma.
+- Una vez dentro del juego, el launcher deja de vigilar cada cambio de la sala para el login.
+- El aviso de objetos solo trabaja cuando está activado y tiene objetos que vigilar.
+
 ## 1.5.0
 
 - **Arreglado el auto-login**: una vez dentro del juego, el launcher ya no lee ningún campo de contraseña. Antes, si ponías la clave de intercambios, podía guardarla como si fuera tu contraseña y en la siguiente sesión no entraba. Ahora solo lee el login de verdad, y vuelve a leerlo únicamente si regresas a la pantalla de inicio de sesión.

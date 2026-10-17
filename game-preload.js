@@ -313,7 +313,7 @@ function buildStatusHud() {
   statusHud.innerHTML = '<span class="bbhud-dot"></span><span class="bbhud-text">Comprobando…</span><span class="bbhud-sep">·</span><span class="bbhud-latency">-- ms</span><span class="bbhud-time"></span>';
   const css = document.createElement('style');
   css.textContent = `
-    #__bb_status_hud{position:fixed;left:14px;bottom:14px;z-index:2147483646;display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(6,18,34,.78);border:1px solid rgba(255,255,255,.13);box-shadow:0 6px 20px rgba(0,0,0,.28);backdrop-filter:blur(8px);font:600 11px system-ui,-apple-system,Segoe UI,sans-serif;color:#fff;pointer-events:none;transition:opacity .2s}
+    #__bb_status_hud{position:fixed;left:14px;bottom:14px;z-index:2147483646;display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(6,18,34,.78);border:1px solid rgba(255,255,255,.13);box-shadow:0 6px 20px rgba(0,0,0,.28);font:600 11px system-ui,-apple-system,Segoe UI,sans-serif;color:#fff;pointer-events:none;transition:opacity .2s}
     .bbhud-dot{width:8px;height:8px;border-radius:50%;background:#8fa3b5;box-shadow:0 0 0 2px rgba(255,255,255,.06)}
     .bbhud-sep{opacity:.35}.bbhud-latency,.bbhud-time{opacity:.7}
     .bbhud-good .bbhud-dot{background:#49d17d;box-shadow:0 0 8px rgba(73,209,125,.4)}
@@ -426,7 +426,7 @@ function ensureGameAssistRoot() {
   const css = document.createElement('style');
   css.textContent = `
     #__bb_game_assist{position:absolute;inset:0;z-index:2147483645;pointer-events:none;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-    #__bb_game_assist .bb-assist-toolbar{position:absolute;left:12px;top:84px;display:flex;align-items:center;gap:5px;padding:6px 7px;border-radius:12px;background:rgba(5,14,25,.88);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 22px rgba(0,0,0,.25);backdrop-filter:blur(9px);pointer-events:auto;opacity:0;transform:translateY(-4px);transition:opacity .15s,transform .15s;white-space:nowrap}
+    #__bb_game_assist .bb-assist-toolbar{position:absolute;left:12px;top:84px;display:flex;align-items:center;gap:5px;padding:6px 7px;border-radius:12px;background:rgba(5,14,25,.88);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 22px rgba(0,0,0,.25);pointer-events:auto;opacity:0;transform:translateY(-4px);transition:opacity .15s,transform .15s;white-space:nowrap}
     #__bb_game_assist.active .bb-assist-toolbar{opacity:1;transform:none}
     #__bb_game_assist.pen-draw .bb-assist-canvas{pointer-events:auto}
     #__bb_game_assist .bb-assist-toolbar button{width:30px;height:27px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.05);color:#dbeeff;font:900 13px system-ui;cursor:pointer;display:grid;place-items:center;padding:0}
@@ -440,13 +440,13 @@ function ensureGameAssistRoot() {
     #__bb_game_assist .bb-assist-count{min-width:18px;text-align:center;font-size:8px;font-weight:1000;color:#8fa8be}
     #__bb_game_assist .bb-assist-canvas{position:absolute;left:0;right:0;top:80px;bottom:0;width:100%;height:calc(100% - 80px);pointer-events:none;touch-action:none;cursor:crosshair}
     #__bb_game_assist .bb-assist-marker-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-    #__bb_game_assist .bb-marker{position:absolute;transform:translate(-50%,-50%);width:31px;height:31px;border-radius:50%;display:grid;place-items:center;font-weight:1000;font-size:15px;text-shadow:0 2px 5px rgba(0,0,0,.4);box-shadow:0 4px 12px rgba(0,0,0,.28),inset 0 0 0 2px rgba(255,255,255,.75);backdrop-filter:blur(4px);animation:bbMarkerIn .14s ease-out}
+    #__bb_game_assist .bb-marker{position:absolute;transform:translate(-50%,-50%);width:31px;height:31px;border-radius:50%;display:grid;place-items:center;font-weight:1000;font-size:15px;text-shadow:0 2px 5px rgba(0,0,0,.4);box-shadow:0 4px 12px rgba(0,0,0,.28),inset 0 0 0 2px rgba(255,255,255,.75);animation:bbMarkerIn .14s ease-out}
     #__bb_game_assist .bb-marker.target{width:38px;height:38px;font-size:24px;background:rgba(90,169,255,.26)!important;border:2px solid rgba(122,195,255,.95);box-shadow:0 0 0 3px rgba(90,169,255,.12),0 5px 16px rgba(0,0,0,.28)}
     #__bb_game_assist.mode-wrong{cursor:not-allowed}
     #__bb_game_assist.mode-maybe{cursor:help}
     #__bb_game_assist.mode-safe{cursor:crosshair}
     #__bb_game_assist.mode-target{cursor:crosshair}
-    #__bb_game_assist .bb-assist-timer{position:absolute;left:50%;top:84px;transform:translateX(-50%);min-width:108px;padding:6px 10px;border-radius:12px;background:rgba(5,14,25,.78);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 20px rgba(0,0,0,.22);color:#e9f4ff;text-align:center;opacity:0;transition:opacity .15s;backdrop-filter:blur(8px)}
+    #__bb_game_assist .bb-assist-timer{position:absolute;left:50%;top:84px;transform:translateX(-50%);min-width:108px;padding:6px 10px;border-radius:12px;background:rgba(5,14,25,.78);border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 20px rgba(0,0,0,.22);color:#e9f4ff;text-align:center;opacity:0;transition:opacity .15s;}
     #__bb_game_assist .bb-assist-timer.show{opacity:1}
     #__bb_game_assist .bb-assist-timer-label{display:block;font-size:7px;letter-spacing:.16em;opacity:.55;margin-bottom:2px}
     #__bb_game_assist .bb-assist-timer strong{font-size:16px;font-variant-numeric:tabular-nums}
@@ -973,6 +973,7 @@ function handleLauncherCommand(command) {
   if (!command) return;
   if (command.type === 'settings') applyRemoteSettings(command.settings);
   if (command.type === 'notice') openClientNotice(command.message);
+  if (command.type === 'fps' && Number.isFinite(command.fps)) sendFps(command.fps);
   if (command.type === 'autoclick-keys' && command.keys && typeof command.keys === 'object') autoclickKeys = command.keys;
   if (command.type === 'game-assist') handleGameAssistCommand(command.payload || {});
   if (command.type === 'client-visual') applyClientVisualSettings(command.payload || {});
@@ -1080,24 +1081,40 @@ function startLoginBridge() {
   };
   run();
   [150, 300, 700, 1200, 2000, 3500, 5500, 8000, 12000].forEach(ms => setTimeout(run, ms));
-  let observerBusy = false;
+  let observerBusy = false, slowCheck = null;
+  const watch = () => { try { loginObserver.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {} };
   loginObserver = new MutationObserver(() => {
     if (observerBusy) return;                       // at most one check per 250 ms instead of one per DOM change
     observerBusy = true;
     setTimeout(() => {
       observerBusy = false;
-      if (inGameSession) { if (loginPanelVisible()) run(); return; }
+      if (inGameSession) {
+        // In the game: stop reacting to every change in the room (crowded events = thousands of changes).
+        try { loginObserver.disconnect(); } catch (_) {}
+        if (!slowCheck) slowCheck = setInterval(() => { if (loginPanelVisible()) { clearInterval(slowCheck); slowCheck = null; run(); watch(); } }, 3000);
+        return;
+      }
       if (loginVisible()) run();
       else if (pendingCredentials) savePendingAfterSuccess();
     }, 250);
   });
-  loginObserver.observe(document.documentElement, { childList: true, subtree: true });
+  watch();
+}
+
+// ---- Frame limit (fps-limit.js runs inside the game page) ----
+let fpsWanted = null;
+function sendFps(n) { fpsWanted = n; try { document.dispatchEvent(new CustomEvent('__bb_fps', { detail: JSON.stringify({ fps: n }) })); } catch (_) {} }
+function installFpsLimit() {
+  try { require('electron').webFrame.executeJavaScript(require('./fps-limit').SOURCE); } catch (_) {}
+  ipcRenderer.invoke('perf:current-fps', profileId).then(n => { if (Number.isFinite(n)) sendFps(n); }).catch(() => {});
+  setTimeout(() => { if (fpsWanted !== null) sendFps(fpsWanted); }, 1500);      // again, in case the page was not ready
 }
 
 function startFrameLogic() {
   if (window.top === window) {
     installOuterGameStyle();
   } else if (location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)) {
+    installFpsLimit();
     installInnerGameStyle();
     startLoginBridge();
   }

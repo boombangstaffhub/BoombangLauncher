@@ -1,6 +1,6 @@
 {
   "name": "boombang-launcher",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Launcher no oficial para BoomBang (HTML5): perfiles, Smart Bar, upper rápido, autoclick y 7 diseños animados.",
   "main": "main.js",
   "scripts": {

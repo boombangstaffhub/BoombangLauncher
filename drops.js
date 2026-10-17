@@ -200,13 +200,24 @@ function create(api) {
     api.notice(`🔔 ${item.label}`);
   }
 
+  // The page is only watched while there is something to watch: no DOM objects learned (or the alert off) = no work.
+  const needsDomWatch = () => cfg.enabled && cfg.items.some(i => i.src);
+  function watchDom(on) {
+    if (on && !observer) {
+      observer = new MutationObserver(muts => {
+        for (const m of muts) { if (m.addedNodes.length || m.type === 'attributes') { scheduleScan(); return; } }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'class', 'hidden'] });
+      scanTimer = setInterval(scan, 700);      // also catches objects that only move or fade in through inline styles
+    } else if (!on && observer) {
+      try { observer.disconnect(); } catch (_) {}
+      observer = null; clearInterval(scanTimer); scanTimer = null;
+    }
+  }
+  let started = false;
   function start() {
-    if (!inGame() || observer) return;
-    observer = new MutationObserver(muts => {
-      for (const m of muts) { if (m.addedNodes.length || m.type === 'attributes') { scheduleScan(); return; } }
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'class', 'hidden'] });
-    scanTimer = setInterval(scan, 700);      // also catches objects that only move or fade in through inline styles
+    if (!inGame() || started) return;
+    started = true;
     document.addEventListener('__bb_pixi_out', onPixi);
     try { if (typeof api.injectMainWorld === 'function') api.injectMainWorld(require('./pixi-hook').SOURCE); } catch (_) {}
     ipc.invoke('alerts:get').then(c => setConfig(c)).catch(() => {});
@@ -215,6 +226,7 @@ function create(api) {
     cfg = normalizeConfig(next);
     shown = new WeakMap(); primed = false;
     sendWatch();
+    watchDom(needsDomWatch());
     scan();
   }
 

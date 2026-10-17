@@ -43,6 +43,8 @@ const DEFAULT_SETTINGS = {
   autoLogin: true,
   autoclickEnabled: false,   // opt-in: turn it on in Settings
   autoUpdateCheck: true,
+  fpsLimit: 60,              // game frames per second when its window is in front (0 = no limit)
+  fpsBackground: 30,         // ... and when it is behind / not focused (0 = same as above)
   forceAnimations: false,    // optional: keep animations even if Windows has "animation effects" turned off
   autoclickInterval: 1,
   autoclickKeys: null,       // null = F3 / F1 / F2 (set in the BB Hub)
@@ -330,6 +332,31 @@ function applyMotionEverywhere() {
   for (const w of BrowserWindow.getAllWindows()) { try { applyMotion(w.webContents); } catch (_) {} }
 }
 
+// ---- Frame limit for the game windows (fps-limit.js) ----
+const FPS_CHOICES = [0, 30, 60, 90, 120, 144];
+function fpsFor(game) {
+  const st = readSettings();
+  const fg = FPS_CHOICES.includes(Number(st.fpsLimit)) ? Number(st.fpsLimit) : 60;
+  const bg = FPS_CHOICES.includes(Number(st.fpsBackground)) ? Number(st.fpsBackground) : 30;
+  const focused = (() => { try { return game.isFocused(); } catch (_) { return true; } })();
+  if (focused || !bg) return fg;
+  return fg ? Math.min(fg, bg) : bg;
+}
+function pushFps(profileId) {
+  const game = getGame(String(profileId || ''));
+  if (game && !game.isDestroyed()) sendClientCommand(String(profileId), { type: 'fps', fps: fpsFor(game) }).catch(() => {});
+}
+ipcMain.handle('perf:current-fps', (_e, profileId) => { const g = getGame(String(profileId || '')); return g ? fpsFor(g) : 60; });
+ipcMain.handle('perf:get', () => { const st = readSettings(); return { fpsLimit: FPS_CHOICES.includes(Number(st.fpsLimit)) ? Number(st.fpsLimit) : 60, fpsBackground: FPS_CHOICES.includes(Number(st.fpsBackground)) ? Number(st.fpsBackground) : 30, choices: FPS_CHOICES }; });
+ipcMain.handle('perf:save', (_e, patch) => {
+  const p = patch && typeof patch === 'object' ? patch : {}, next = { ...readSettings() };
+  if ('fpsLimit' in p && FPS_CHOICES.includes(Number(p.fpsLimit))) next.fpsLimit = Number(p.fpsLimit);
+  if ('fpsBackground' in p && FPS_CHOICES.includes(Number(p.fpsBackground))) next.fpsBackground = Number(p.fpsBackground);
+  writeSettings(next);
+  for (const id of games.keys()) pushFps(id);
+  return { fpsLimit: next.fpsLimit, fpsBackground: next.fpsBackground, choices: FPS_CHOICES };
+});
+
 function createLauncher() {
   const settings = readSettings();
   launcherWindow = new BrowserWindow({
@@ -392,6 +419,8 @@ async function createGame(profile) {
 
   applyMotion(game.webContents);
   games.set(profile.id, game);
+  game.on('focus', () => pushFps(profile.id));
+  game.on('blur', () => pushFps(profile.id));
   endedClientSessions.delete(String(profile.id));
   startClientSession(profile.id);
   const initialClientSettings = getClientSettings(profile.id);
