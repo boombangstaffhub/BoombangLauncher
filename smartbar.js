@@ -186,9 +186,12 @@ function create(api) {
 
   // ------------------------------------------------------------------ focused user (SRT)
   function panelTitle(rootEl) {
-    // The player's name is the BIGGEST text in the ficha header. Only that text is considered:
-    // if it is not a usable name we return nothing, instead of falling back to the status bubble.
+    // The player's name is the BIGGEST text in the HEADER of the ficha (its upper part). Only text that sits inside
+    // the ficha card counts, so big numbers elsewhere on screen (the ring countdown 10…0, scores…) are never read.
+    // If that text is not a usable name we return nothing, instead of falling back to the status bubble.
     const own = new Set(api.ownNames().map(normName).filter(Boolean));
+    const card = rootEl.getBoundingClientRect();
+    const headerBottom = card.top + Math.max(40, card.height * 0.35);
     let bestRaw = '', bestSize = -1, bestTop = 1e9, n = 0;
     for (const el of [rootEl, ...rootEl.querySelectorAll('*')]) {
       if (++n > 400) break;
@@ -196,31 +199,55 @@ function create(api) {
       for (const c of el.childNodes) if (c.nodeType === 3) text += c.nodeValue;
       text = text.replace(/\s+/g, ' ').trim();
       if (!text || text.length > 32 || !visible(el)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.left < card.left - 2 || r.right > card.right + 2 || r.top < card.top - 2 || r.top > headerBottom) continue;   // outside the ficha header
       if (own.has(normName(text))) continue;                       // our own name is never the target
       const size = parseFloat(getComputedStyle(el).fontSize) || 0;
-      const top = el.getBoundingClientRect().top;
-      if (size > bestSize + 0.5 || (Math.abs(size - bestSize) <= 0.5 && top < bestTop)) { bestRaw = text; bestSize = size; bestTop = top; }
+      if (size > bestSize + 0.5 || (Math.abs(size - bestSize) <= 0.5 && r.top < bestTop)) { bestRaw = text; bestSize = size; bestTop = r.top; }
     }
     return cleanUserCandidate(bestRaw);
   }
+  // The ficha card that contains `el`: the largest parent that is still "card sized" (not the whole game screen).
+  function fichaCard(el) {
+    const stage = document.querySelector('#BoomBangStage') || document.body;
+    const sr = stage.getBoundingClientRect();
+    const maxW = Math.max(260, sr.width * 0.45), maxH = Math.max(320, sr.height * 0.75);
+    let card = null;
+    for (let p = el; p && p !== stage && p !== document.body; p = p.parentElement) {
+      const r = p.getBoundingClientRect();
+      if (r.width > maxW || r.height > maxH) break;               // went past the card: stop
+      if (r.width >= 80 && r.height >= 80) card = p;
+    }
+    return card;
+  }
   function scanFocusedUser() {
     try {
-      const sel = 'img[src*="/avatars/fichaface/"],img[src*="/avatars/miniface/"],[class*="ficha" i],[id*="ficha" i],[class*="profile-card" i],[class*="user-card" i],[class*="selected-user" i],[data-selected="true"]';
       const seen = new Set();
-      for (const el of document.querySelectorAll(sel)) {
+      const tryRoot = rootEl => {
+        if (!rootEl || seen.has(rootEl)) return '';
+        seen.add(rootEl);
+        return panelTitle(rootEl);
+      };
+      // 1) The ficha is recognised by the player's face picture in it.
+      for (const img of document.querySelectorAll('img[src*="/avatars/fichaface/"],img[src*="/avatars/miniface/"]')) {
+        if (!visible(img)) continue;
+        const name = tryRoot(fichaCard(img));
+        if (name) return setFocused(name);
+      }
+      // 2) Fallback: elements that call themselves ficha / profile card.
+      for (const el of document.querySelectorAll('[class*="ficha" i],[id*="ficha" i],[class*="profile-card" i],[class*="user-card" i],[class*="selected-user" i],[data-selected="true"]')) {
         if (!visible(el)) continue;
-        const rootEl = el.closest('[role="dialog"],[class*="ficha" i],[class*="profile" i],[class*="card" i],[class*="panel" i]') || el.parentElement || el;
-        if (seen.has(rootEl)) continue; seen.add(rootEl);
-        const name = panelTitle(rootEl);
-        if (name) {
-          if (name !== focusedUser) { focusedUser = name; try { ipc.send('client:focused-user', pid(), name); } catch (_) {} }
-          return focusedUser;
-        }
+        const name = tryRoot(fichaCard(el) || el);
+        if (name) return setFocused(name);
       }
     } catch (_) {}
-    // FIX: no ficha open (or no readable name) -> forget the previous user, so SRT never goes to the wrong person.
+    // No ficha open (or no readable name) -> forget the previous user, so SRT never goes to the wrong person.
     if (focusedUser) { focusedUser = ''; try { ipc.send('client:focused-user', pid(), ''); } catch (_) {} }
     return '';
+  }
+  function setFocused(name) {
+    if (name !== focusedUser) { focusedUser = name; try { ipc.send('client:focused-user', pid(), name); } catch (_) {} }
+    return focusedUser;
   }
 
   // ------------------------------------------------------------------ chat
