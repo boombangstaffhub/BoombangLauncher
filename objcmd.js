@@ -4,11 +4,11 @@
 
 const { parseCommand: parseObject } = require('./catalog');
 
-// ":discord online | afk | offline" (also ausente, invisible, ocupado/nomolestar): your Discord status.
+// ":discord online | afk | offline": your Discord status. afk = No molestar (also ocupado / nomolestar / dnd).
 const DISCORD_RE = /^\s*:discord(?:\s+(\S+))?\s*$/i;
-const DISCORD_STATUS = { online: 'online', on: 'online', conectado: 'online', disponible: 'online', afk: 'idle', ausente: 'idle', idle: 'idle',
+const DISCORD_STATUS = { online: 'online', on: 'online', conectado: 'online', disponible: 'online', afk: 'dnd',
   offline: 'invisible', off: 'invisible', invisible: 'invisible', desconectado: 'invisible', ocupado: 'dnd', nomolestar: 'dnd', dnd: 'dnd' };
-const STATUS_NAME = { online: 'En línea', idle: 'Ausente', invisible: 'Invisible (desconectado)', dnd: 'No molestar' };
+const STATUS_NAME = { online: 'En línea', invisible: 'Invisible (desconectado)', dnd: 'No molestar' };
 function parseDiscord(text) {
   const m = DISCORD_RE.exec(String(text || ''));
   if (!m) return null;
