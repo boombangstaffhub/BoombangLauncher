@@ -1,7 +1,8 @@
 # Cambios
 
-## 1.6.1
+## 1.7.0
 
+- **Precio de objetos desde el chat**: escribe `:objeto donut` (también vale `:object`, `:objet` u `:obj`) en el chat del juego y se abre una ventanita con la imagen, la rareza (Rare, Muy rare, Casi único, Único, LTD o Medalla) y el precio del catálogo de la web. El comando no se envía al chat: nadie lo ve. Si el precio es 0, lo pone su dueño. La primera búsqueda lee el catálogo entero (tarda un poco); después es instantáneo y se actualiza solo una vez al día. `:objeto actualizar` lo vuelve a leer al momento.
 - El registro de parpadeos (`parpadeos-log.txt`) se quita del launcher instalado: era solo para pruebas, y el archivo que dejó la 1.6.0 se borra solo.
 - El aviso de nueva versión muestra siempre las novedades de esa versión (antes, durante unos minutos después de publicar, podía enseñar las de la anterior) y las palabras en **negrita** ya no salen con asteriscos.
 

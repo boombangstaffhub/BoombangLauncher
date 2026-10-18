@@ -37,6 +37,7 @@ const { pingHost, RttTracker, DEFAULT_PING_HOST } = require('./rtt');
 const { createUpdater, isNewer, notesFor, readConfig } = require('./updater');
 const { normalizeConfig: normalizeDropAlert } = require('./drops');
 const visual = require('./visual');
+const catalogMod = require('./catalog');
 const { Worker: ThreadWorker } = require('worker_threads');
 
 const DEFAULT_SETTINGS = {
@@ -354,6 +355,14 @@ ipcMain.handle('client:get-status', (_e, profileId) => {
   if (!game || game.isDestroyed()) return { state: 'closed', latency: null };
   return clientStatus.get(id) || { state: 'connecting', latency: null };
 });
+// Rare prices (":objeto donut" in the game chat): reads the public catalogue of the website, cached for a day.
+let catalog = null;
+function getCatalog() {
+  if (!catalog) catalog = catalogMod.createCatalog({ BrowserWindow, session, fs, cacheFile: path.join(DATA_ROOT, 'catalogo-cache.json'), debugFile: app.isPackaged ? null : path.join(DATA_ROOT, 'catalogo-debug.html') });
+  return catalog;
+}
+ipcMain.handle('catalog:find', (_e, query, opts) => getCatalog().find(String(query || '').slice(0, 60), { force: !!(opts && opts.force) }));
+ipcMain.handle('catalog:status', () => getCatalog().status());
 ipcMain.handle('diag:flicker-log', (_e, lines) => {
   if (app.isPackaged) return false;     // test version (npm start) only, never in the installed launcher
   try {

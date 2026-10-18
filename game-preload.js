@@ -1007,6 +1007,15 @@ const drops = require('./drops').create({
   isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)
 });
 
+// ":objeto donut" in the chat: price of a rare from the website catalogue (objcmd.js + catalog.js in main).
+// Started right away (before the game's own scripts) so the command is caught before the game can send it.
+const objcmd = require('./objcmd').create({
+  ipcRenderer,
+  notice: message => openClientNotice(message),
+  isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)
+});
+objcmd.start();
+
 function handleLauncherCommand(command) {
   if (!command) return;
   if (command.type === 'settings') applyRemoteSettings(command.settings);
