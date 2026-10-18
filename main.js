@@ -355,6 +355,7 @@ ipcMain.handle('client:get-status', (_e, profileId) => {
   return clientStatus.get(id) || { state: 'connecting', latency: null };
 });
 ipcMain.handle('diag:flicker-log', (_e, lines) => {
+  if (app.isPackaged) return false;     // test version (npm start) only, never in the installed launcher
   try {
     const file = path.join(DATA_ROOT, 'parpadeos-log.txt');
     let size = 0; try { size = fs.statSync(file).size; } catch (_) {}
@@ -427,7 +428,7 @@ async function createGame(profile) {
     webPreferences: {
       partition,
       preload: path.join(__dirname, 'game-preload.js'),
-      additionalArguments: [`--bb-profile=${profile.id}`, `--bb-profile-name=${encodeURIComponent(profile.name)}`],
+      additionalArguments: [`--bb-profile=${profile.id}`, `--bb-profile-name=${encodeURIComponent(profile.name)}`, ...(app.isPackaged ? [] : ['--bb-test'])],
       contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true,
       sandbox: false, spellcheck: false, backgroundThrottling: false,
       enableWebSQL: false
@@ -1608,7 +1609,12 @@ function scheduleUpdateCheck() {
   }, 4000);
 }
 
-app.whenReady().then(() => { ensureDataRoot(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); syncVisualWatch(); scheduleUpdateCheck(); startServerMonitor(); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
+// The installed launcher doesn't keep the test-only flicker report: remove what 1.6.0 left behind.
+function removeTestLogs() {
+  if (!app.isPackaged) return;
+  for (const f of ['parpadeos-log.txt', 'parpadeos-log-anterior.txt']) { try { fs.unlinkSync(path.join(DATA_ROOT, f)); } catch (_) {} }
+}
+app.whenReady().then(() => { ensureDataRoot(); removeTestLogs(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); syncVisualWatch(); scheduleUpdateCheck(); startServerMonitor(); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
 app.on('before-quit', () => {
   isQuitting = true; stopAutoclick(); if (serverTimer) clearInterval(serverTimer); try { tray?.destroy(); } catch (_) {} tray = null;
 });

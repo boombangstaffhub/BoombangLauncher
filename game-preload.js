@@ -5,6 +5,7 @@ const path = require('path');
 const profileArg = process.argv.find(arg => arg.startsWith('--bb-profile='));
 const profileNameArg = process.argv.find(arg => arg.startsWith('--bb-profile-name='));
 const profileId = profileArg ? profileArg.slice('--bb-profile='.length) : '';
+const TEST_BUILD = process.argv.includes('--bb-test');   // started with npm start (test folder), not the installer
 const profileName = profileNameArg ? decodeURIComponent(profileNameArg.slice('--bb-profile-name='.length)) : 'BoomBang';
 
 let autoLoginStarted = false;
@@ -309,11 +310,13 @@ function installStageTransformGuard() {
 // ---- Flicker report (parpadeos-log.txt): what happens in the game page around a black flash ----
 const flickerQueue = []; let flickerTimer = null;
 function logFlicker(what, detail = '') {
+  if (!TEST_BUILD) return;
   flickerQueue.push(`${new Date().toLocaleTimeString('es-ES')}.${String(Date.now() % 1000).padStart(3, '0')} ${what}${detail ? ' · ' + detail : ''}`);
   if (flickerQueue.length > 200) flickerQueue.shift();
   if (!flickerTimer) flickerTimer = setTimeout(() => { flickerTimer = null; const lines = flickerQueue.splice(0); ipcRenderer.invoke('diag:flicker-log', lines).catch(() => {}); }, 2000);
 }
 function watchFlickers() {
+  if (!TEST_BUILD) return;              // parpadeos-log.txt only exists in the test version
   const seen = new WeakSet();
   const hook = c => {
     if (seen.has(c)) return; seen.add(c);
