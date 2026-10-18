@@ -14,7 +14,7 @@ const BLOCKED_PATH = /^\/(channels\/\d+(\/|$)|guild-discovery|discovery|servers|
 
 // Servers are never shown. In "chat" mode only the conversation itself is left (Discord's class names carry a random
 // suffix, so they are matched by their start: "sidebar_1a2b3c" -> [class^="sidebar_"]).
-const CSS = `
+const PAGE_CSS = `
   nav[aria-label*="Servers" i], nav[aria-label*="Servidores" i], [class^="guilds_"], [class*=" guilds_"] { display: none !important; }
   html[data-bb-mode="chat"] [class^="sidebar_"], html[data-bb-mode="chat"] [class*=" sidebar_"],
   html[data-bb-mode="chat"] [class^="sidebarList_"], html[data-bb-mode="chat"] [class*=" sidebarList_"],
@@ -131,7 +131,7 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
     wc.on('did-navigate-in-page', (_e, url) => guard(url));
     wc.on('will-frame-navigate', e => { try { if (!/^https?:|^about:/i.test(e.url)) e.preventDefault(); } catch (_) {} });
     wc.on('dom-ready', () => {
-      wc.insertCSS(CSS).catch(() => {});
+      wc.insertCSS(PAGE_CSS).catch(() => {});
       setMode(mode);
       // Discord offers to open the installed app: always answer "stay in the browser".
       wc.executeJavaScript(`(function(){const stay=()=>{for(const b of document.querySelectorAll('button,a')){const t=(b.innerText||'').toLowerCase();
