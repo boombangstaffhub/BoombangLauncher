@@ -164,7 +164,7 @@ function createCatalog({ BrowserWindow, session, cacheFile, fs, log = () => {}, 
           await exec(CLICK_CATEGORY_SOURCE(cat.label));
           r = await settle(x => catKey(x.category) === catKey(cat.label));
         }
-        if (debugFile && cat === CATEGORIES[0]) { try { fs.writeFileSync(debugFile, String(await exec('document.documentElement.outerHTML') || '')); } catch (_) {} }
+        if (debugFile) { try { fs.writeFileSync(debugFile.replace(/\.html$/, `-${catKey(cat.label)}.html`), String(await exec('document.documentElement.outerHTML') || '')); } catch (_) {} }
         let got = 0, guard = 0;
         const seenPages = new Set();
         while (r && guard++ < MAX_PAGES) {
