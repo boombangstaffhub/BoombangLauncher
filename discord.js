@@ -115,7 +115,7 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
     const ses = prepareSession();
     win = new BrowserWindow({
       width: 900, height: 1000, show: false, title: 'Discord', autoHideMenuBar: true, backgroundColor: '#313338', icon,
-      minWidth: 300, minHeight: 360,
+      minWidth: 300, minHeight: 360, maximizable: false, fullScreenable: false,   // no "maximize" button: it stays small
       webPreferences: { session: ses, contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, spellcheck: true }
     });
     win.setMenuBarVisibility(false);
@@ -145,6 +145,7 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
       return { action: 'deny' };
     });
     win.on('page-title-updated', e => e.preventDefault());
+    win.on('maximize', () => { try { win.unmaximize(); } catch (_) {} });   // double-click on the title bar too
     const remember = () => { try { if (mode === 'chat' && win.isVisible() && !win.isMinimized()) saveBounds(win.getBounds()); } catch (_) {} };
     win.on('resized', remember); win.on('moved', remember);
     // Closing only hides it: it keeps reading new messages for the bubbles.
