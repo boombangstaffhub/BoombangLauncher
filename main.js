@@ -17,8 +17,8 @@ try {
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
-  app.commandLine.appendSwitch('enable-gpu-rasterization');
-  app.commandLine.appendSwitch('enable-zero-copy');
+  // No forced GPU switches (enable-gpu-rasterization / enable-zero-copy): on some graphics drivers they cause short
+  // black flashes. Chromium already uses the GPU when the driver is good for it.
   // Windows only: stops Chromium from throttling the game when another window (the Hub) covers part of it.
   app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 } catch (_) {}
