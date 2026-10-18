@@ -244,10 +244,21 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
     for (let i = 0; i < 40 && !state.loggedIn; i++) { await new Promise(r => setTimeout(r, 500)); await readChats(); }   // just started: wait for it
     if (!state.loggedIn) return { ok: false, message: 'inicia sesión primero (burbuja de arriba).' };
     const prev = mode;
+    // A window that is not on screen doesn't draw, and Discord's menus only open when they are drawn: show the page
+    // for a moment, fully transparent and without a taskbar button (you don't see anything), then hide it again.
+    const wasVisible = win.isVisible();
+    if (!wasVisible) {
+      try { win.setOpacity(0); win.setSkipTaskbar(true); win.setFocusable(false); win.showInactive(); } catch (_) {}
+      await new Promise(r => setTimeout(r, 450));
+    }
     setMode('list');                                  // the profile picture lives in the part hidden while chatting
     let r = null;
     try { r = await win.webContents.executeJavaScript(STATUS_SOURCE(want), true); } catch (e) { r = { ok: false, message: 'no se pudo cambiar el estado.' }; }
-    setMode(prev);
+    if (!wasVisible) {
+      await new Promise(res => setTimeout(res, 300));
+      try { win.hide(); win.setOpacity(1); win.setSkipTaskbar(false); win.setFocusable(true); } catch (_) {}
+    }
+    setMode(wasVisible ? prev : 'list');
     return r || { ok: false, message: 'no se pudo cambiar el estado.' };
   }
 
