@@ -287,23 +287,49 @@ function scaleStage() {
     const scaleY = (vh / 657) * zoom;
     transform = `translate(-50%, -50%) scaleX(${scaleX}) scaleY(${scaleY})`;
   }
-  if (transform === lastAppliedStageTransform && target.style.getPropertyValue('transform') === transform) return;
+  // The scale lives in our stylesheet (through a CSS variable), not in the stage's own style attribute: when the game
+  // rewrites that attribute, there is no frame where the stage jumps to the game's own size (that showed as a black flash).
+  if (transform === lastAppliedStageTransform) return;
   lastAppliedStageTransform = transform;
-  target.style.setProperty('transform', transform, 'important');
-  target.style.setProperty('transform-origin', 'center center', 'important');
+  document.documentElement.style.setProperty('--bb-stage-tf', transform);
+  if (target.style.getPropertyPriority('transform') === 'important') { target.style.removeProperty('transform'); target.style.removeProperty('transform-origin'); }
+  logFlicker('escala', transform);
 }
 
 function installStageTransformGuard() {
+  // Nothing to fight any more: the stylesheet rule always wins over the game's inline style. Only log it for the
+  // flicker report, a few times at most.
   const target = document.querySelector('#BoomBangStage');
   if (!target || stageTransformObserver) return;
+  let n = 0;
+  stageTransformObserver = new MutationObserver(() => { if (++n <= 20) logFlicker('el juego cambió el estilo del escenario', String(target.getAttribute('style') || '').slice(0, 120)); });
+  stageTransformObserver.observe(target, { attributes: true, attributeFilter: ['style'] });
+}
 
-  stageTransformObserver = new MutationObserver(() => {
-    const current = target.style.getPropertyValue('transform');
-    if (current !== lastAppliedStageTransform) {
-      requestAnimationFrame(scaleStage);
-    }
-  });
-  stageTransformObserver.observe(target, { attributes: true, attributeFilter: ['style', 'class'] });
+// ---- Flicker report (parpadeos-log.txt): what happens in the game page around a black flash ----
+const flickerQueue = []; let flickerTimer = null;
+function logFlicker(what, detail = '') {
+  flickerQueue.push(`${new Date().toLocaleTimeString('es-ES')}.${String(Date.now() % 1000).padStart(3, '0')} ${what}${detail ? ' · ' + detail : ''}`);
+  if (flickerQueue.length > 200) flickerQueue.shift();
+  if (!flickerTimer) flickerTimer = setTimeout(() => { flickerTimer = null; const lines = flickerQueue.splice(0); ipcRenderer.invoke('diag:flicker-log', lines).catch(() => {}); }, 2000);
+}
+function watchFlickers() {
+  const seen = new WeakSet();
+  const hook = c => {
+    if (seen.has(c)) return; seen.add(c);
+    c.addEventListener('webglcontextlost', () => logFlicker('⚠ el juego perdió la tarjeta gráfica (contexto WebGL perdido)'));
+    c.addEventListener('webglcontextrestored', () => logFlicker('contexto WebGL recuperado'));
+    let last = `${c.width}x${c.height}`;
+    new MutationObserver(() => { const now = `${c.width}x${c.height}`; if (now !== last) { logFlicker('el lienzo del juego cambió de tamaño (se borra un instante)', `${last} → ${now}`); last = now; } })
+      .observe(c, { attributes: true, attributeFilter: ['width', 'height'] });
+  };
+  const scan = () => { for (const c of document.querySelectorAll('canvas')) hook(c); };
+  scan(); setInterval(scan, 5000);
+  // Main-thread hitches: a pause of more than 150 ms between two frames.
+  let prev = 0, hitches = 0;
+  const loop = t => { if (prev && t - prev > 150 && document.visibilityState === 'visible' && ++hitches <= 300) logFlicker('tirón', `${Math.round(t - prev)} ms sin dibujar`); prev = t; requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  logFlicker('registro iniciado', `${navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0] || ''}`);
 }
 
 function buildStatusHud() {
@@ -1003,6 +1029,7 @@ async function installInnerGameStyle() {
   style.id = '__bb_launcher_inner_fit_v165';
   style.textContent = `
     html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#000!important}
+    #BoomBangStage{transform:var(--bb-stage-tf,translate(-50%,-50%))!important;transform-origin:center center!important}
     #BoomBangStage{position:fixed!important;left:50%!important;top:50%!important;width:1012px!important;height:657px!important;min-width:1012px!important;min-height:657px!important;max-width:1012px!important;max-height:657px!important;margin:0!important;padding:0!important;overflow:hidden!important;transform-origin:center center!important;z-index:1!important}
     #BoomBangContainer,#BoomBangAlerts,#BoomBangLogin,#bbLoginRoot{width:1012px!important;height:657px!important;min-width:1012px!important;min-height:657px!important;max-width:1012px!important;max-height:657px!important;margin:0!important;padding:0!important;transform:none!important}
     #BoomBangStage>div[title*="Arrastra esta esquina"]{display:none!important}
@@ -1018,6 +1045,7 @@ async function installInnerGameStyle() {
   smartbar.start();
   drops.start();
   installStageTransformGuard();
+  watchFlickers();
   renderStatusHud();
   clearInterval(statusTimer);
   statusTimer = setInterval(renderStatusHud, 1000);

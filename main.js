@@ -347,6 +347,15 @@ function pushFps(profileId) {
   if (game && !game.isDestroyed()) sendClientCommand(String(profileId), { type: 'fps', fps: fpsFor(game) }).catch(() => {});
 }
 ipcMain.handle('games:count', () => games.size);
+ipcMain.handle('diag:flicker-log', (_e, lines) => {
+  try {
+    const file = path.join(DATA_ROOT, 'parpadeos-log.txt');
+    let size = 0; try { size = fs.statSync(file).size; } catch (_) {}
+    if (size > 300 * 1024) fs.renameSync(file, file.replace(/\.txt$/, '-anterior.txt'));
+    fs.appendFileSync(file, (Array.isArray(lines) ? lines : []).slice(0, 300).map(l => String(l).slice(0, 300)).join('\n') + '\n');
+    return true;
+  } catch (_) { return false; }
+});
 ipcMain.handle('perf:current-fps', (_e, profileId) => { const g = getGame(String(profileId || '')); return g ? fpsFor(g) : 60; });
 ipcMain.handle('perf:get', () => { const st = readSettings(); return { fpsLimit: FPS_CHOICES.includes(Number(st.fpsLimit)) ? Number(st.fpsLimit) : 60, fpsBackground: FPS_CHOICES.includes(Number(st.fpsBackground)) ? Number(st.fpsBackground) : 30, choices: FPS_CHOICES }; });
 ipcMain.handle('perf:save', (_e, patch) => {
