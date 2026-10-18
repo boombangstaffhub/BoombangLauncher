@@ -49,16 +49,28 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
     const wc = win.webContents;
     const guard = url => { if (isBlocked(url)) { setTimeout(() => { try { wc.loadURL(HOME); } catch (_) {} }, 0); return true; } return false; };
     wc.on('will-navigate', (e, url) => {
+      // "discord://…" would open the installed Discord app: never. Everything stays in this window.
+      if (!/^https?:/i.test(url)) { e.preventDefault(); return; }
       if (!isDiscordUrl(url) && !/hcaptcha|recaptcha|google\.com\/recaptcha/i.test(url)) { e.preventDefault(); shell.openExternal(url).catch(() => {}); return; }
       if (isBlocked(url)) { e.preventDefault(); guard(url); }
     });
     wc.on('did-navigate', (_e, url) => guard(url));
     wc.on('did-navigate-in-page', (_e, url) => guard(url));     // Discord moves between chats without reloading
-    wc.on('dom-ready', () => { wc.insertCSS(HIDE_SERVERS_CSS).catch(() => {}); });
+    wc.on('will-frame-navigate', e => { try { if (!/^https?:|^about:/i.test(e.url)) e.preventDefault(); } catch (_) {} });
+    wc.on('dom-ready', () => {
+      wc.insertCSS(HIDE_SERVERS_CSS).catch(() => {});
+      // Discord tells the website "the app is installed" and offers to open it there: answer "stay in the browser".
+      wc.executeJavaScript(`try{localStorage.setItem('hasOpenedAppFromProtocol','false');}catch(e){}
+        (function(){const stay=()=>{for(const b of document.querySelectorAll('button,a')){const t=(b.innerText||'').toLowerCase();
+          if(/navegador|browser/.test(t)&&/contin|sigue|seguir|abrir|open|usar|use/.test(t)){b.click();return true;}}
+          const txt=(document.body&&document.body.innerText||'').toLowerCase();
+          if(/aplicaci[oó]n de discord ejecutada|discord app launched|abierto el enlace en tu aplicaci/.test(txt)){location.replace('${HOME}');return true;}return false;};
+          if(!stay()){const mo=new MutationObserver(()=>{if(stay())mo.disconnect();});mo.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>mo.disconnect(),20000);}})();`).catch(() => {});
+    });
     // Links in messages open in your normal browser; Discord's own pop-ups stay inside.
     wc.setWindowOpenHandler(({ url }) => {
       if (isDiscordUrl(url) && !isBlocked(url)) { wc.loadURL(url); return { action: 'deny' }; }
-      if (/^https?:/i.test(url)) shell.openExternal(url).catch(() => {});
+      if (/^https?:/i.test(url)) shell.openExternal(url).catch(() => {});     // never discord:// (the installed app)
       return { action: 'deny' };
     });
     win.on('page-title-updated', (e, title) => { e.preventDefault(); setUnread(unreadFromTitle(title)); });
