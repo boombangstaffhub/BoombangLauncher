@@ -59,6 +59,38 @@ const LIST_SOURCE = `(() => {
   return { loggedIn, chats: [...out.values()].filter(c => c.name) };
 })()`;
 
+// Runs inside the Discord page: changes YOUR status the same way you would by hand (picture at the bottom left ->
+// status -> "Para siempre"). want = online | idle | dnd | invisible.
+const STATUS_SOURCE = want => `(async (want) => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const txt = e => ((e && (e.innerText || e.textContent)) || '').trim().toLowerCase();
+  const LABEL = { online: /^(en l[ií]nea|disponible|online)/, idle: /^(ausente|inactivo|idle)/, dnd: /^(no molestar|do not disturb)/, invisible: /^invisible/ };
+  const ANY = /(en l[ií]nea|disponible|ausente|inactivo|no molestar|invisible|online|idle|do not disturb)/;
+  const items = () => [...document.querySelectorAll('[role="menuitem"],[role="menuitemradio"],[role="option"]')];
+  const waitFor = async (fn, ms = 3000) => { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await sleep(100); } return null; };
+  const hover = el => { const r = el.getBoundingClientRect(); for (const t of ['pointerover', 'pointerenter', 'mouseover', 'mouseenter', 'pointermove', 'mousemove']) el.dispatchEvent(new MouseEvent(t, { bubbles: true, clientX: r.left + 5, clientY: r.top + 5 })); };
+  const esc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+  const pick = () => items().find(e => (e.id || '').toLowerCase().endsWith('-' + want) || (e.id || '').toLowerCase().includes('status-picker-' + want)) || items().find(e => LABEL[want].test(txt(e)));
+  if (/\\/login|\\/register/.test(location.pathname)) return { ok: false, message: 'inicia sesión primero (burbuja de arriba).' };
+  esc(); await sleep(150);
+  const av = document.querySelector('section[aria-label*="cuenta" i] [class*="avatar"], section[aria-label*="account" i] [class*="avatar"], [class*="panels_"] [class*="avatarWrapper"], [class*="panels_"] [class*="avatar"]');
+  if (!av) return { ok: false, message: 'no encuentro tu perfil en Discord.' };
+  (av.closest('[role="button"],button') || av).click();
+  let item = await waitFor(pick, 1500);
+  if (!item) {
+    const row = await waitFor(() => [...document.querySelectorAll('[role="dialog"] [role="button"],[role="dialog"] button,[class*="popout"] [role="button"],[class*="popout"] button,[role="menuitem"]')].find(e => ANY.test(txt(e))), 2000);
+    if (row) { hover(row); row.click(); item = await waitFor(pick, 2000); }
+  }
+  if (!item) { esc(); return { ok: false, message: 'no encuentro el menú de estado de Discord.' }; }
+  hover(item);
+  if (want !== 'online') {
+    const forever = await waitFor(() => items().find(e => /para siempre|forever|indefinid/i.test(txt(e))), 1200);
+    if (forever) { hover(forever); forever.click(); } else item.click();
+  } else item.click();
+  await sleep(300); esc();
+  return { ok: true };
+})(${JSON.stringify(want)})`;
+
 function isDiscordUrl(u) { try { return /(^|\.)discord\.com$/i.test(new URL(u).hostname); } catch (_) { return false; } }
 function isBlocked(u) { try { const x = new URL(u); return isDiscordUrl(u) && BLOCKED_PATH.test(x.pathname); } catch (_) { return false; } }
 function unreadFromTitle(title) { const m = /^\s*\((\d+)\)/.exec(String(title || '')); return m ? Number(m[1]) : 0; }
@@ -205,9 +237,23 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
     if (win && !win.isDestroyed()) win.webContents.loadURL(HOME);
     return true;
   }
+  // ":discord online | afk | offline" from the game chat.
+  async function setStatus(want) {
+    if (!['online', 'idle', 'dnd', 'invisible'].includes(want)) return { ok: false, message: 'estado no válido.' };
+    ensure();
+    for (let i = 0; i < 40 && !state.loggedIn; i++) { await new Promise(r => setTimeout(r, 500)); await readChats(); }   // just started: wait for it
+    if (!state.loggedIn) return { ok: false, message: 'inicia sesión primero (burbuja de arriba).' };
+    const prev = mode;
+    setMode('list');                                  // the profile picture lives in the part hidden while chatting
+    let r = null;
+    try { r = await win.webContents.executeJavaScript(STATUS_SOURCE(want), true); } catch (e) { r = { ok: false, message: 'no se pudo cambiar el estado.' }; }
+    setMode(prev);
+    return r || { ok: false, message: 'no se pudo cambiar el estado.' };
+  }
+
   function quit() { clearInterval(poll); poll = null; if (win && !win.isDestroyed()) { win.__bbQuit = true; try { win.destroy(); } catch (_) {} } }
 
-  return { ensure, openChat, openLogin, hide, detachFrom, logout, quit, state: () => state, readChats, isOpen: () => !!(win && !win.isDestroyed() && win.isVisible()) };
+  return { setStatus, ensure, openChat, openLogin, hide, detachFrom, logout, quit, state: () => state, readChats, isOpen: () => !!(win && !win.isDestroyed() && win.isVisible()) };
 }
 
-module.exports = { createDiscord, isBlocked, isDiscordUrl, unreadFromTitle, LIST_SOURCE, HOME, PARTITION };
+module.exports = { STATUS_SOURCE, createDiscord, isBlocked, isDiscordUrl, unreadFromTitle, LIST_SOURCE, HOME, PARTITION };

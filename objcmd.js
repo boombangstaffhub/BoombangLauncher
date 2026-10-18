@@ -2,7 +2,19 @@
 // ":objeto donut" in the game chat -> a small window with the picture and price of that rare (catalog.js does the
 // reading). The command is caught BEFORE the game sees it: it is never sent to the chat.
 
-const { parseCommand } = require('./catalog');
+const { parseCommand: parseObject } = require('./catalog');
+
+// ":discord online | afk | offline" (also ausente, invisible, ocupado/nomolestar): your Discord status.
+const DISCORD_RE = /^\s*:discord(?:\s+(\S+))?\s*$/i;
+const DISCORD_STATUS = { online: 'online', on: 'online', conectado: 'online', disponible: 'online', afk: 'idle', ausente: 'idle', idle: 'idle',
+  offline: 'invisible', off: 'invisible', invisible: 'invisible', desconectado: 'invisible', ocupado: 'dnd', nomolestar: 'dnd', dnd: 'dnd' };
+const STATUS_NAME = { online: 'En línea', idle: 'Ausente', invisible: 'Invisible (desconectado)', dnd: 'No molestar' };
+function parseDiscord(text) {
+  const m = DISCORD_RE.exec(String(text || ''));
+  if (!m) return null;
+  return { discord: true, status: DISCORD_STATUS[String(m[1] || '').toLowerCase()] || null, word: m[1] || '' };
+}
+function parseCommand(text) { return parseDiscord(text) || parseObject(text); }
 
 function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
   let host = null, shadow = null, lastField = null, swallowUntil = 0, searchSeq = 0;
@@ -129,7 +141,16 @@ function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
     s.querySelector('.foot').textContent = `${res.results.length === 12 ? 'Primeros 12 resultados · ' : ''}Catálogo de la web (${res.total}${res.expected > res.total ? ` de ${res.expected}` : ''} objetos${age ? `, leído hace ${age} h` : ''}). 0 = lo pone su dueño.`;
   }
 
+  async function runDiscord(cmd) {
+    if (!cmd.status) { notice('Discord · usa  :discord online,  :discord afk  o  :discord offline'); return; }
+    notice(`Discord · cambiando a ${STATUS_NAME[cmd.status]}…`);
+    let r = null;
+    try { r = await ipcRenderer.invoke('discord:status', cmd.status); } catch (_) {}
+    notice(r && r.ok ? `Discord · ${STATUS_NAME[cmd.status]} ✓ (se queda así hasta que lo cambies)` : `Discord · ${(r && r.message) || 'no se pudo cambiar el estado.'}`);
+  }
+
   async function run(cmd) {
+    if (cmd.discord) return runDiscord(cmd);
     const seq = ++searchSeq;
     if (!cmd.refresh && !cmd.query) { setTitle('Precio de objetos'); setMessage('Escribe el nombre detrás del comando, por ejemplo  :objeto donut'); return; }
     setTitle(cmd.refresh ? 'Actualizando catálogo' : `Buscando «${cmd.query}»…`);
@@ -160,4 +181,4 @@ function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
   return { start, run, close };
 }
 
-module.exports = { create };
+module.exports = { create, parseDiscord };

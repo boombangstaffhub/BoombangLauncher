@@ -379,6 +379,7 @@ ipcMain.handle('discord:open-chat', (_e, profileId, chatId, name) => { getDiscor
 ipcMain.handle('discord:login', (_e, profileId) => { getDiscord().openLogin(getGame(profileId)); return true; });
 ipcMain.handle('discord:toggle', (_e, profileId) => { const d = getDiscord(); if (d.isOpen()) d.hide(); else d.openLogin(getGame(profileId)); return true; });
 ipcMain.handle('discord:logout', () => getDiscord().logout());
+ipcMain.handle('discord:status', (_e, want) => getDiscord().setStatus(String(want || '')));
 
 // Rare prices (":objeto donut" in the game chat): reads the public catalogue of the website, cached for a day.
 let catalog = null;
