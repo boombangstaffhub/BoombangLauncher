@@ -1016,6 +1016,15 @@ const objcmd = require('./objcmd').create({
 });
 objcmd.start();
 
+// Discord bubble (private messages): discord-bubble.js here, discord.js in the launcher.
+const discordBubble = require('./discord-bubble').create({
+  ipcRenderer,
+  getProfileId: () => profileId,
+  getSettings: () => clientSettings,
+  saveSettings: patch => saveClientSettings(patch),
+  isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)
+});
+
 function handleLauncherCommand(command) {
   if (!command) return;
   if (command.type === 'settings') applyRemoteSettings(command.settings);
@@ -1027,6 +1036,7 @@ function handleLauncherCommand(command) {
   if (command.type === 'hub') { try { if (typeof window.__BB_HUB_OPEN_TAB__ === 'function') window.__BB_HUB_OPEN_TAB__(command.tab || 'home'); } catch (_) {} }
   smartbar.handleCommand(command);   // chat-shortcut, smartbar-learn, smartbar-upper, smartbar-force
   drops.handleCommand(command);      // drop-alert-config, drop-alert-learn, drop-alert-test
+  discordBubble.handleCommand(command);   // discord-unread, settings (bubble on/off)
 }
 
 // Commands from the separate control panel are delivered by the main process
@@ -1065,6 +1075,7 @@ async function installInnerGameStyle() {
   installClientHub();
   smartbar.start();
   drops.start();
+  discordBubble.start();
   installStageTransformGuard();
   watchFlickers();
   renderStatusHud();

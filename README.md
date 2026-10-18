@@ -117,6 +117,7 @@ El launcher se actualiza solo:
 | `marker.js` | Screen Marker de Sendero Oculto |
 | `fps-limit.js` | Límite de FPS del juego |
 | `catalog.js` / `objcmd.js` | Comando `:objeto` del chat: precio de rares del catálogo de la web |
+| `discord.js` / `discord-bubble.js` | Burbuja de Discord (mensajes directos) |
 | `drops.js`, `pixi-hook.js`, `visual.js` | Aviso de objetos (por su nombre en el juego; por forma como respaldo) |
 | `client-hub.js`, `client-hub.css`, `hub-window.html` | El BB Hub |
 | `rtt.js` | Medición del ping |

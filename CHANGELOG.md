@@ -2,6 +2,7 @@
 
 ## 1.7.0
 
+- **Discord dentro del launcher (solo mensajes directos)**: actívalo en BB Hub → Cliente → «Burbuja de Discord en el juego». Aparece una burbuja que puedes arrastrar; al pulsarla se abre una ventanita con tus mensajes directos y grupos, sin salir del juego y sin abrir la app de Discord. Los servidores no se muestran. La burbuja enseña los mensajes sin leer. Inicias sesión una vez dentro de la ventanita (correo o código QR del móvil); la sesión la guarda Discord, no el launcher, y puedes cerrarla desde el Hub.
 - **Precio de objetos desde el chat**: escribe `:objeto donut` (también vale `:object`, `:objet` u `:obj`) en el chat del juego y se abre una ventanita con la imagen, la rareza (Rare, Muy rare, Casi único, Único o LTD) y el precio del catálogo de la web. El comando no se envía al chat: nadie lo ve. Si el precio es 0, lo pone su dueño. El launcher lee el catálogo entero en segundo plano al arrancar (unos segundos, una vez al día) y guarda una copia; las búsquedas son instantáneas. `:objeto actualizar` lo vuelve a leer al momento; cada lectura sustituye a la anterior, no se acumula.
 - El registro de parpadeos (`parpadeos-log.txt`) se quita del launcher instalado: era solo para pruebas, y el archivo que dejó la 1.6.0 se borra solo.
 - El aviso de nueva versión muestra siempre las novedades de esa versión (antes, durante unos minutos después de publicar, podía enseñar las de la anterior) y las palabras en **negrita** ya no salen con asteriscos.

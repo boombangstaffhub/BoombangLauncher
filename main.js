@@ -38,6 +38,7 @@ const { createUpdater, isNewer, notesFor, readConfig } = require('./updater');
 const { normalizeConfig: normalizeDropAlert } = require('./drops');
 const visual = require('./visual');
 const catalogMod = require('./catalog');
+const discordMod = require('./discord');
 const { Worker: ThreadWorker } = require('worker_threads');
 
 const DEFAULT_SETTINGS = {
@@ -46,7 +47,8 @@ const DEFAULT_SETTINGS = {
   autoUpdateCheck: true,
   fpsLimit: 60,              // game frames per second when its window is in front (0 = no limit)
   fpsBackground: 30,         // ... and when it is behind / not focused (0 = same as above)
-  forceAnimations: false,    // optional: keep animations even if Windows has "animation effects" turned off
+  forceAnimations: false,
+  discordBounds: null,       // where you left the Discord window    // optional: keep animations even if Windows has "animation effects" turned off
   autoclickInterval: 1,
   autoclickKeys: null,       // null = F3 / F1 / F2 (set in the BB Hub)
   dropAlert: null,           // aviso de objetos (BB Hub → Avisos)
@@ -75,7 +77,10 @@ const DEFAULT_CLIENT_SETTINGS = {
   hotkeys: null,
   smartBarItems: null,
   smartBarShowPing: true,
-  smartBarShowGear: true
+  smartBarShowGear: true,
+  discordBubble: false,     // Discord bubble (private messages) in the game
+  discordBubbleX: null,
+  discordBubbleY: null
 };
 
 let launcherWindow = null;
@@ -355,6 +360,23 @@ ipcMain.handle('client:get-status', (_e, profileId) => {
   if (!game || game.isDestroyed()) return { state: 'closed', latency: null };
   return clientStatus.get(id) || { state: 'connecting', latency: null };
 });
+// Discord, private messages only (discord.js): one window shared by every account, bubble in each game.
+let discord = null;
+function getDiscord() {
+  if (!discord) {
+    discord = discordMod.createDiscord({
+      BrowserWindow, session, shell, icon: APP_ICON,
+      getBounds: () => readSettings().discordBounds,
+      saveBounds: b => writeSettings({ ...readSettings(), discordBounds: b }),
+      onUnread: n => { for (const id of games.keys()) sendClientCommand(id, { type: 'discord-unread', count: n }).catch(() => {}); }
+    });
+  }
+  return discord;
+}
+ipcMain.handle('discord:toggle', (_e, profileId) => { getDiscord().toggle(getGame(profileId)); return true; });
+ipcMain.handle('discord:unread', () => (discord ? discord.unread() : 0));
+ipcMain.handle('discord:logout', () => getDiscord().logout());
+
 // Rare prices (":objeto donut" in the game chat): reads the public catalogue of the website, cached for a day.
 let catalog = null;
 function getCatalog() {
@@ -493,6 +515,7 @@ async function createGame(profile) {
 
   let isClosing = false;
   game.on('close', async (event) => {
+    if (discord) discord.detachFrom(game);           // the Discord window is a child of the game: keep it alive
     if (isClosing || closingGames.has(profile.id)) return;
     event.preventDefault(); closingGames.add(profile.id);
     try { await ses.flushStorageData(); if (ses.cookies?.flushStore) await ses.cookies.flushStore(); } catch (_) {}
@@ -500,6 +523,7 @@ async function createGame(profile) {
   });
   game.on('closed', () => {
     pingTrackers.delete(String(profile.id));
+    if (discord) { discord.detachFrom(game); if (!games.size || (games.size === 1 && games.get(profile.id) === game)) { discord.quit(); discord = null; } }
     focusedUsers.delete(String(profile.id));
     try { endClientSession(profile.id, isClosing ? 'closed' : 'crashed'); } catch (_) {}
     games.delete(profile.id);
@@ -1636,6 +1660,6 @@ function removeTestLogs() {
 }
 app.whenReady().then(() => { ensureDataRoot(); removeTestLogs(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); syncVisualWatch(); scheduleUpdateCheck(); startServerMonitor(); setTimeout(() => { try { getCatalog().warmUp(); } catch (_) {} }, 20000); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
 app.on('before-quit', () => {
-  isQuitting = true; stopAutoclick(); if (serverTimer) clearInterval(serverTimer); try { tray?.destroy(); } catch (_) {} tray = null;
+  isQuitting = true; stopAutoclick(); if (discord) discord.quit(); if (serverTimer) clearInterval(serverTimer); try { tray?.destroy(); } catch (_) {} tray = null;
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin' && (!readSettings().minimizeToTray || isQuitting)) app.quit(); });
