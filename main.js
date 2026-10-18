@@ -358,7 +358,13 @@ ipcMain.handle('client:get-status', (_e, profileId) => {
 // Rare prices (":objeto donut" in the game chat): reads the public catalogue of the website, cached for a day.
 let catalog = null;
 function getCatalog() {
-  if (!catalog) catalog = catalogMod.createCatalog({ BrowserWindow, session, fs, cacheFile: path.join(DATA_ROOT, 'catalogo-cache.json'), debugFile: app.isPackaged ? null : path.join(DATA_ROOT, 'catalogo-debug.html') });
+  if (!catalog) {
+    // Test version only: what was read in each category (catalogo-log.txt) and the page as the launcher saw it.
+    // Both files are rewritten every time, never added to.
+    const logLines = [];
+    const log = app.isPackaged ? () => {} : line => { logLines.push(`${new Date().toLocaleString('es-ES')}  ${line}`); try { fs.writeFileSync(path.join(DATA_ROOT, 'catalogo-log.txt'), logLines.slice(-40).join('\n') + '\n'); } catch (_) {} };
+    catalog = catalogMod.createCatalog({ BrowserWindow, session, fs, log, cacheFile: path.join(DATA_ROOT, 'catalogo-cache.json'), debugFile: app.isPackaged ? null : path.join(DATA_ROOT, 'catalogo-debug.html') });
+  }
   return catalog;
 }
 ipcMain.handle('catalog:find', (_e, query, opts) => getCatalog().find(String(query || '').slice(0, 60), { force: !!(opts && opts.force) }));
@@ -1623,7 +1629,7 @@ function removeTestLogs() {
   if (!app.isPackaged) return;
   for (const f of ['parpadeos-log.txt', 'parpadeos-log-anterior.txt']) { try { fs.unlinkSync(path.join(DATA_ROOT, f)); } catch (_) {} }
 }
-app.whenReady().then(() => { ensureDataRoot(); removeTestLogs(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); syncVisualWatch(); scheduleUpdateCheck(); startServerMonitor(); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
+app.whenReady().then(() => { ensureDataRoot(); removeTestLogs(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); syncVisualWatch(); scheduleUpdateCheck(); startServerMonitor(); setTimeout(() => { try { getCatalog().warmUp(); } catch (_) {} }, 20000); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
 app.on('before-quit', () => {
   isQuitting = true; stopAutoclick(); if (serverTimer) clearInterval(serverTimer); try { tray?.destroy(); } catch (_) {} tray = null;
 });

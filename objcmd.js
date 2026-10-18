@@ -111,7 +111,7 @@ function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
     const s = ensureWindow(); const b = s.querySelector('.body'); b.textContent = '';
     setTitle(`«${query}»`);
     if (!res.ok) { setMessage(res.message || 'No se pudo buscar.'); return; }
-    if (!res.results.length) { setMessage(`No encuentro «${query}» en el catálogo (${res.total} objetos). Prueba con otra parte del nombre.`); return; }
+    if (!res.results.length) { setMessage(`No encuentro «${query}» en el catálogo (${res.total}${res.expected > res.total ? ` de ${res.expected}` : ''} objetos leídos). Prueba con otra parte del nombre.`); return; }
     for (const it of res.results) {
       const row = el('div', 'item');
       const pic = el('div', 'pic'); const img = el('img'); img.alt = ''; img.src = it.img; img.referrerPolicy = 'no-referrer'; pic.appendChild(img);
@@ -126,7 +126,7 @@ function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
       row.append(pic, info); b.appendChild(row);
     }
     const age = res.at ? Math.round((Date.now() - res.at) / 3600000) : 0;
-    s.querySelector('.foot').textContent = `${res.results.length === 12 ? 'Primeros 12 resultados · ' : ''}Catálogo de la web${age ? `, leído hace ${age} h` : ''}. 0 = lo pone su dueño.`;
+    s.querySelector('.foot').textContent = `${res.results.length === 12 ? 'Primeros 12 resultados · ' : ''}Catálogo de la web (${res.total}${res.expected > res.total ? ` de ${res.expected}` : ''} objetos${age ? `, leído hace ${age} h` : ''}). 0 = lo pone su dueño.`;
   }
 
   async function run(cmd) {
@@ -143,7 +143,7 @@ function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
     try { res = await ipcRenderer.invoke('catalog:find', cmd.query, { force: cmd.refresh }); } catch (_) { res = { ok: false, message: 'No se pudo buscar.' }; }
     clearInterval(poll);
     if (seq !== searchSeq) return;
-    if (cmd.refresh) { setTitle('Catálogo actualizado'); setMessage(res.ok ? `Listo: ${res.total} objetos.` : res.message); return; }
+    if (cmd.refresh) { setTitle('Catálogo actualizado'); setMessage(res.ok ? `Listo: ${res.total}${res.expected ? ` de ${res.expected}` : ''} objetos.\nLa copia anterior se ha sustituido por esta.` : res.message); return; }
     showResults(cmd.query, res);
   }
 
