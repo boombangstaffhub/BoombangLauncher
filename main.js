@@ -363,7 +363,12 @@ function getCatalog() {
     // Both files are rewritten every time, never added to.
     const logLines = [];
     const log = app.isPackaged ? () => {} : line => { logLines.push(`${new Date().toLocaleString('es-ES')}  ${line}`); try { fs.writeFileSync(path.join(DATA_ROOT, 'catalogo-log.txt'), logLines.slice(-40).join('\n') + '\n'); } catch (_) {} };
-    catalog = catalogMod.createCatalog({ BrowserWindow, session, fs, log, cacheFile: path.join(DATA_ROOT, 'catalogo-cache.json'), debugFile: app.isPackaged ? null : path.join(DATA_ROOT, 'catalogo-debug.html') });
+    const fetchText = async url => {
+      const res = await net.fetch(url, { headers: { 'Accept-Language': 'es-ES,es;q=0.9', 'Accept': 'text/html' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.text();
+    };
+    catalog = catalogMod.createCatalog({ BrowserWindow, session, fs, log, fetchText, cacheFile: path.join(DATA_ROOT, 'catalogo-cache.json'), debugFile: app.isPackaged ? null : path.join(DATA_ROOT, 'catalogo-debug.html') });
   }
   return catalog;
 }

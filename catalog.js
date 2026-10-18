@@ -98,6 +98,74 @@ const CLICK_CATEGORY_SOURCE = label => `(() => {
   (el.closest('a,button') || el).click(); return true;
 })()`;
 
+// ---------------------------------------------------------------- the data inside the page
+// The catalogue page carries the WHOLE list of its category inside it (React Router "turbo-stream" data:
+// window.__reactRouterContext.streamController.enqueue("...")), with id, name, spriteName and price of every object.
+// Reading that is exact and fast: one page per category instead of clicking through 200 pages.
+function decodeTurbo(arr) {
+  const memo = new Map();
+  const h = i => {
+    if (typeof i !== 'number') return i;
+    if (i < 0) return i === -7 ? null : undefined;            // -5 undefined, -7 null, others: special markers
+    if (memo.has(i)) return memo.get(i);
+    const v = arr[i];
+    if (Array.isArray(v)) { const out = []; memo.set(i, out); for (const x of v) out.push(h(x)); return out; }
+    if (v && typeof v === 'object') {
+      const o = {}; memo.set(i, o);
+      for (const k of Object.keys(v)) { const key = /^_\d+$/.test(k) ? arr[+k.slice(1)] : k; o[key] = h(v[k]); }
+      return o;
+    }
+    return v;
+  };
+  return h(0);
+}
+function loaderDataOf(html) {
+  const out = [];
+  const re = /streamController\.enqueue\(("(?:[^"\\]|\\.)*")\)/g;
+  let m;
+  while ((m = re.exec(String(html || '')))) {
+    try { const arr = JSON.parse(JSON.parse(m[1])); if (Array.isArray(arr)) out.push(decodeTurbo(arr)); } catch (_) {}
+  }
+  return out;
+}
+const pick = (o, keys) => { for (const k of keys) if (o && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k]; return undefined; };
+// Objects of one category from the page HTML. null = the page didn't have the data (then the slow reader is used).
+function parseCatalogHtml(html, { medals = false } = {}) {
+  const roots = loaderDataOf(html);
+  let list = null;
+  const find = (o, depth = 0) => {
+    if (!o || typeof o !== 'object' || depth > 6 || list) return;
+    for (const key of medals ? ['medallas', 'medals', 'catalogo'] : ['catalogo']) {
+      if (Array.isArray(o[key]) && o[key].length && typeof o[key][0] === 'object') { list = o[key]; return; }
+    }
+    for (const v of Object.values(o)) if (v && typeof v === 'object' && !Array.isArray(v)) find(v, depth + 1);
+  };
+  for (const r of roots) find(r);
+  if (!list) return null;
+  // Pictures: the catalogue ones are .../objetos/catalog/small/<spriteName>Catalog.png (folder taken from the page).
+  const srcs = [...String(html).matchAll(/(?:src|href)="(https?:\/\/[^"]+\.(?:png|webp|gif|jpg))"/gi)].map(x => x[1].replace(/&amp;/g, '&'));
+  const base = (/(https?:\/\/[^"'\s]+?\/dswmedia\/objetos\/catalog\/small\/)/i.exec(html) || [])[1] || 'https://static.boombang.tv/dswmedia/objetos/catalog/small/';
+  let pattern = null;                         // for medals: learnt from a picture of the page that has the sprite name
+  const items = [];
+  for (const o of list) {
+    const name = String(pick(o, ['name', 'nombre', 'title', 'titulo']) || '').trim();
+    if (!name) continue;
+    const sprite = String(pick(o, ['spriteName', 'sprite', 'image', 'imagen', 'icon', 'icono', 'code', 'codigo', 'badge']) || '');
+    const diamonds = Number(pick(o, ['diamonds', 'diamantes', 'diamond']) || 0);
+    const coins = Number(pick(o, ['goldenCoins', 'coins', 'monedas', 'price', 'precio']) || 0);
+    let img = '';
+    if (/^https?:/i.test(sprite)) img = sprite;
+    else if (sprite && !medals) img = `${base}${sprite}Catalog.png`;
+    else if (sprite) {
+      if (!pattern) { const hit = srcs.find(u => u.includes(`/${sprite}.`) || u.includes(`/${sprite}`)); if (hit) pattern = hit.split(sprite).join('\u0000'); }
+      img = pattern ? pattern.split('\u0000').join(sprite) : '';
+    }
+    const price = diamonds > 0 ? diamonds : coins;
+    items.push({ id: pick(o, ['id', 'uid']), name, img, sprite, price, owner: !price, currency: diamonds > 0 ? 'diamantes' : 'sacos de oro' });
+  }
+  return items;
+}
+
 // ---------------------------------------------------------------- search
 function scoreItem(item, q, words) {
   const n = item._n || norm(item.name);
@@ -124,7 +192,7 @@ function search(items, query, limit = 12) {
 }
 
 // ---------------------------------------------------------------- reading the website (Electron main process)
-function createCatalog({ BrowserWindow, session, cacheFile, fs, log = () => {}, debugFile = null }) {
+function createCatalog({ BrowserWindow, session, cacheFile, fs, log = () => {}, debugFile = null, fetchText = null }) {
   let cache = null, building = null, progress = '';
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -135,7 +203,7 @@ function createCatalog({ BrowserWindow, session, cacheFile, fs, log = () => {}, 
   }
   function save(c) { cache = c; c._indexed = false; try { fs.writeFileSync(cacheFile, JSON.stringify(c)); } catch (_) {} }
 
-  async function crawl() {
+  async function crawl(cats = CATEGORIES) {
     const win = new BrowserWindow({
       show: false, width: 1400, height: 5000,          // tall: the whole page is "on screen", every card is drawn
       webPreferences: { session: session.fromPartition('persist:bb-catalogo'), contextIsolation: true, sandbox: true, backgroundThrottling: false, offscreen: false }
@@ -156,7 +224,7 @@ function createCatalog({ BrowserWindow, session, cacheFile, fs, log = () => {}, 
     const all = new Map(), report = [];
     let expected = 0;
     try {
-      for (const cat of CATEGORIES) {
+      for (const cat of cats) {
         progress = `Leyendo ${cat.label}…`;
         await loaded(`${CATALOG_URL}&rareza=${cat.rareza}`);
         let r = await settle(() => true, 40);
@@ -171,8 +239,8 @@ function createCatalog({ BrowserWindow, session, cacheFile, fs, log = () => {}, 
           await exec(SCROLL_SOURCE);
           const again = await exec(EXTRACT_SOURCE);
           if (again && again.sig === r.sig) r = again;                       // same list, now with pictures
-          for (const it of r.items) {
-            const key = `${cat.rareza}|${it.name}`;
+          for (const [idx, it] of r.items.entries()) {
+            const key = `${cat.rareza}|${r.page}|${idx}`;          // by position: two objects can share a name
             const old = all.get(key);
             if (!old) { all.set(key, { ...it, category: cat.label }); got++; }
             else if (!old.img && it.img) old.img = it.img;
@@ -195,9 +263,40 @@ function createCatalog({ BrowserWindow, session, cacheFile, fs, log = () => {}, 
     return { items: [...all.values()], expected };
   }
 
+  // Fast way first (the list inside each category page); the slow page-by-page reader only for a category whose page
+  // didn't carry the list.
+  async function readAll() {
+    const items = [], report = [], slow = [];
+    let expected = 0;
+    for (const cat of CATEGORIES) {
+      progress = `Leyendo ${cat.label}…`;
+      let got = null;
+      if (fetchText) {
+        try {
+          const html = await fetchText(`${CATALOG_URL}&rareza=${cat.rareza}`);
+          if (debugFile) { try { fs.writeFileSync(debugFile.replace(/\.html$/, `-${catKey(cat.label)}.html`), html); } catch (_) {} }
+          got = parseCatalogHtml(html, { medals: cat.rareza === 0 });
+        } catch (e) { report.push(`${cat.label}: no se pudo descargar (${e && e.message})`); }
+      }
+      if (got && got.length) {
+        for (const it of got) items.push({ ...it, category: cat.label });
+        expected += got.length;
+        const noPic = got.filter(i => !i.img).length;
+        report.push(`${cat.label}: ${got.length} objetos${noPic ? ` (${noPic} sin foto)` : ''}`);
+      } else slow.push(cat);
+    }
+    if (slow.length) {
+      report.push(`Lectura lenta (página a página): ${slow.map(c => c.label).join(', ')}`);
+      const r = await crawl(slow);
+      items.push(...r.items); expected += r.expected;
+    }
+    log(report.join('\n'));
+    return { items, expected };
+  }
+
   function refresh() {
     if (building) return building;
-    building = crawl().then(({ items, expected }) => {
+    building = readAll().then(({ items, expected }) => {
       // The new reading REPLACES the old copy completely (nothing piles up). A reading that came out clearly worse
       // than the copy we have (the web failed halfway) is thrown away instead.
       const old = load();
@@ -235,4 +334,4 @@ function parseCommand(text) {
   return { refresh: false, query: arg };
 }
 
-module.exports = { CATALOG_URL, CATEGORIES, EXTRACT_SOURCE, SCROLL_SOURCE, NEXT_SOURCE, CLICK_CATEGORY_SOURCE, norm, search, createCatalog, parseCommand, COMMAND_RE };
+module.exports = { parseCatalogHtml, decodeTurbo, loaderDataOf, CATALOG_URL, CATEGORIES, EXTRACT_SOURCE, SCROLL_SOURCE, NEXT_SOURCE, CLICK_CATEGORY_SOURCE, norm, search, createCatalog, parseCommand, COMMAND_RE };
