@@ -347,6 +347,13 @@ function pushFps(profileId) {
   if (game && !game.isDestroyed()) sendClientCommand(String(profileId), { type: 'fps', fps: fpsFor(game) }).catch(() => {});
 }
 ipcMain.handle('games:count', () => games.size);
+const clientStatus = new Map();   // profile -> { state, latency, at }
+ipcMain.on('client:status', (_e, profileId, st) => { if (st && typeof st === 'object') clientStatus.set(String(profileId || ''), { state: String(st.state || ''), latency: Number.isFinite(st.latency) ? st.latency : null, at: Date.now() }); });
+ipcMain.handle('client:get-status', (_e, profileId) => {
+  const id = String(profileId || ''), game = getGame(id);
+  if (!game || game.isDestroyed()) return { state: 'closed', latency: null };
+  return clientStatus.get(id) || { state: 'connecting', latency: null };
+});
 ipcMain.handle('diag:flicker-log', (_e, lines) => {
   try {
     const file = path.join(DATA_ROOT, 'parpadeos-log.txt');

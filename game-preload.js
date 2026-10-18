@@ -350,7 +350,16 @@ function buildStatusHud() {
   return statusHud;
 }
 
+let lastSentStatus = '';
+function reportStatus() {
+  // The separate BB Hub window shows this in its header ("Conectado · 52 ms").
+  const sig = `${statusMessage.state}|${statusMessage.latency}`;
+  if (sig === lastSentStatus || !profileId) return;
+  lastSentStatus = sig;
+  try { ipcRenderer.send('client:status', profileId, { state: statusMessage.state, latency: statusMessage.latency }); } catch (_) {}
+}
 function renderStatusHud() {
+  reportStatus();
   const hud = buildStatusHud();
   const txt = hud.querySelector('.bbhud-text');
   const lat = hud.querySelector('.bbhud-latency');

@@ -43,7 +43,7 @@
 .hub-profile{margin-top:6px;display:inline-block;padding:3px 9px;border-radius:999px;font-size:9px;font-weight:700;color:#e5dcff;background:rgba(150,120,255,.18);border:1px solid var(--bb-line)}
 .hub-header-tools{display:flex;align-items:center;gap:8px}
 .hub-status{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--bb-line);background:rgba(255,255,255,.04);border-radius:999px;font-size:9px;color:#cfc6ff}
-.hub-status i{width:7px;height:7px;border-radius:50%;background:#8a86a8}.hub-status.good i{background:#4ff0a0;box-shadow:0 0 10px #4ff0a0}.hub-status.warn i{background:#ffd25a}
+.hub-status i{width:7px;height:7px;border-radius:50%;background:#8a86a8}.hub-status.good i{background:#4ff0a0;box-shadow:0 0 10px #4ff0a0}.hub-status.warn i{background:#ffd25a}.hub-status.bad i{background:#ff6b7a}
 .hub-close{width:32px;height:32px;border-radius:11px;border:1px solid var(--bb-line);background:rgba(255,255,255,.05);color:#e5dcff;font-size:18px;cursor:pointer;transition:background .15s,transform .2s}
 .hub-close:hover{background:rgba(255,100,130,.25);transform:rotate(90deg)}
 .hub-content{flex:1;overflow:auto;padding:16px 20px 24px}
