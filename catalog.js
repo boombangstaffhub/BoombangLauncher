@@ -11,9 +11,8 @@ const CATEGORIES = [
   { rareza: 2, label: 'Casi único' },
   { rareza: 3, label: 'LTD' },
   { rareza: 4, label: 'Muy rare' },
-  { rareza: 5, label: 'Rare' },
-  { rareza: 0, label: 'Medallas' }
-];
+  { rareza: 5, label: 'Rare' }
+];                                           // medals (rareza=0) are not read: not needed
 const MAX_AGE = 24 * 60 * 60 * 1000;
 const MAX_PAGES = 150;                       // per category, safety stop
 
