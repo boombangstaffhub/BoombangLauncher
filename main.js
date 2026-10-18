@@ -80,7 +80,8 @@ const DEFAULT_CLIENT_SETTINGS = {
   smartBarShowGear: true,
   discordBubble: false,     // Discord bubble (private messages) in the game
   discordBubbleX: null,
-  discordBubbleY: null
+  discordBubbleY: null,
+  discordHeads: []          // chats that have a bubble
 };
 
 let launcherWindow = null;
@@ -360,7 +361,7 @@ ipcMain.handle('client:get-status', (_e, profileId) => {
   if (!game || game.isDestroyed()) return { state: 'closed', latency: null };
   return clientStatus.get(id) || { state: 'connecting', latency: null };
 });
-// Discord, private messages only (discord.js): one window shared by every account, bubble in each game.
+// Discord chat bubbles, private messages only (discord.js): one hidden Discord page shared by every account.
 let discord = null;
 function getDiscord() {
   if (!discord) {
@@ -368,13 +369,15 @@ function getDiscord() {
       BrowserWindow, session, shell, icon: APP_ICON,
       getBounds: () => readSettings().discordBounds,
       saveBounds: b => writeSettings({ ...readSettings(), discordBounds: b }),
-      onUnread: n => { for (const id of games.keys()) sendClientCommand(id, { type: 'discord-unread', count: n }).catch(() => {}); }
+      onState: st => { for (const id of games.keys()) sendClientCommand(id, { type: 'discord-state', state: st }).catch(() => {}); }
     });
   }
   return discord;
 }
-ipcMain.handle('discord:toggle', (_e, profileId) => { getDiscord().toggle(getGame(profileId)); return true; });
-ipcMain.handle('discord:unread', () => (discord ? discord.unread() : 0));
+ipcMain.handle('discord:state', () => getDiscord().ensure());
+ipcMain.handle('discord:open-chat', (_e, profileId, chatId, name) => { getDiscord().openChat(String(chatId || ''), getGame(profileId), String(name || '').slice(0, 40)); return true; });
+ipcMain.handle('discord:login', (_e, profileId) => { getDiscord().openLogin(getGame(profileId)); return true; });
+ipcMain.handle('discord:toggle', (_e, profileId) => { const d = getDiscord(); if (d.isOpen()) d.hide(); else d.openLogin(getGame(profileId)); return true; });
 ipcMain.handle('discord:logout', () => getDiscord().logout());
 
 // Rare prices (":objeto donut" in the game chat): reads the public catalogue of the website, cached for a day.
