@@ -220,6 +220,17 @@ async function refreshServer(){ applyServer(await window.bb.server.check()); }
 // ------------------------------------------------------------------ updates (GitHub)
 let appVersion='', pendingUpdate=null, updating=false;
 const cleanErr = e => String(e && e.message || e || '').replace(/^Error invoking remote method '[^']+': (Error: )?/,'');
+// Release notes are written in Markdown: show **this** in bold instead of the raw asterisks (no HTML injection).
+function renderNotes(el,text){
+  el.textContent='';
+  String(text).split('\n').forEach((line,i)=>{
+    if(i) el.appendChild(document.createElement('br'));
+    String(line).replace(/`([^`]+)`/g,'$1').split(/\*\*(.+?)\*\*/).forEach((part,j)=>{
+      if(!part) return;
+      if(j%2){const b=document.createElement('strong');b.textContent=part;el.appendChild(b);} else el.appendChild(document.createTextNode(part));
+    });
+  });
+}
 function showUpdate(info){
   if(!info || !info.available || updating) return;
   pendingUpdate=info;
@@ -227,7 +238,7 @@ function showUpdate(info){
   const b=$('updateBanner'); b.classList.remove('hidden','busy','failed');
   $('updateTitle').textContent=`Nueva versión disponible: V${info.latest}`;
   $('updateStatus').textContent=`Tienes la V${info.current}. Pulsa «Actualizar» para instalarla; tus perfiles y ajustes no se tocan.`;
-  $('updateNotes').textContent=info.notes||'Sin notas para esta versión.';
+  renderNotes($('updateNotes'),info.notes||'Sin notas para esta versión.');
   $('updateNotes').classList.add('hidden'); $('updateNotesBtn').textContent='Novedades';
 }
 function hideUpdate(){ $('updateBanner').classList.add('hidden'); }

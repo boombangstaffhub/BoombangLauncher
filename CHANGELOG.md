@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.6.1
+
+- El aviso de nueva versión muestra siempre las novedades de esa versión (antes, durante unos minutos después de publicar, podía enseñar las de la anterior) y las palabras en **negrita** ya no salen con asteriscos.
+
 ## 1.6.0
 
 - **SRT con cualquier nombre**: ahora también lee nombres hechos solo de símbolos («.-», «_», «!!», «★»…). Solo se lee el nombre grande de la cabecera de la ficha (nunca por coordenadas): los números grandes de fuera de la ficha, como la cuenta atrás del ring (10…0), ya no se confunden con el nombre.

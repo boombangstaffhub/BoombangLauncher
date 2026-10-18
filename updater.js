@@ -38,7 +38,9 @@ function notesFor(changelog, version) {
     if (!first) first = block;
     if (version && m[1] === String(version).replace(/^v/i, '')) return block;
   }
-  return first || '';
+  // Asked for a version the file doesn't have yet (GitHub can serve a copy a few minutes old): show nothing rather
+  // than the notes of an older update.
+  return version ? '' : (first || '');
 }
 
 function readConfig(appDir) {

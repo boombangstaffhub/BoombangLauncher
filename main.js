@@ -1544,6 +1544,15 @@ function getInstalledUpdater() {
   }
   return installedUpdater;
 }
+function notesFromRelease(info) {
+  // electron-updater gives the text of the GitHub release (the workflow writes it from CHANGELOG.md).
+  const rn = info && info.releaseNotes;
+  const text = Array.isArray(rn) ? rn.map(x => x && x.note || '').join('\n') : String(rn || '');
+  if (!/<[a-z][^>]*>/i.test(text)) return text.trim();
+  // Sometimes it arrives as HTML: turn it back into plain lines.
+  return text.replace(/<li[^>]*>/gi, '- ').replace(/<\/?(strong|b)>/gi, '**').replace(/<br\s*\/?>|<\/(p|li|ul|h\d)>/gi, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\n{2,}/g, '\n').trim();
+}
 async function releaseNotes(version) {
   const cfg = readConfig(__dirname);
   if (!cfg) return '';
@@ -1555,7 +1564,8 @@ async function checkInstalled() {
     const latest = String(result && result.updateInfo && result.updateInfo.version || '');
     if (!latest) return { ok: false, configured: true, current: LAUNCHER_VERSION, message: 'No se encontró ninguna versión publicada.' };
     const available = isNewer(latest, LAUNCHER_VERSION);
-    return { ok: true, configured: true, current: LAUNCHER_VERSION, latest, available, notes: available ? await releaseNotes(latest) : '' };
+    const notes = available ? (notesFromRelease(result.updateInfo) || await releaseNotes(latest)) : '';
+    return { ok: true, configured: true, current: LAUNCHER_VERSION, latest, available, notes };
   } catch (error) {
     return { ok: false, configured: true, current: LAUNCHER_VERSION, message: `No se pudo comprobar (${String(error && error.message || error).split('\n')[0].slice(0, 160)}).` };
   }
