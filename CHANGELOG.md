@@ -2,6 +2,7 @@
 
 ## 1.6.0
 
+- **SRT con cualquier nombre**: ahora también lee nombres hechos solo de símbolos («.-», «_», «!!», «★»…). Se sigue leyendo el nombre grande de la cabecera de la ficha, nunca por coordenadas.
 - **Menos lag en eventos con mucha gente.** Nuevo **límite de FPS** (BB Hub → Rendimiento): 60 FPS con la ventana delante y 30 FPS con la ventana detrás o en otra cuenta, configurable (30, 60, 90, 120, 144 o sin límite). Antes el juego dibujaba hasta 240 FPS aunque no hiciera falta.
 - Ya no hay efectos de desenfoque encima del juego (Smart Bar, barra de estado…): se recalculaban en cada fotograma.
 - Una vez dentro del juego, el launcher deja de vigilar cada cambio de la sala para el login.

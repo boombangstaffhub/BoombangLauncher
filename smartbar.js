@@ -86,10 +86,11 @@ const JUNK_NAMES = /^(perfil|usuario|mensaje|message|cerrar|opciones|boombang|on
 function cleanUserCandidate(value) {
   const x = String(value || '').replace(/\s+/g, ' ').trim();
   if (!x || x.length > 32) return '';
-  // FIX: names made only of numbers ("0", "123") and 1-character names are valid BoomBang users.
-  // Only reject UI words and text without any letter or digit.
-  if (JUNK_NAMES.test(x) || !/[\p{L}\p{N}]/u.test(x)) return '';
-  return x;
+  // Any name the game allows is valid: numbers only ("0"), one character, or only symbols (".-", "_", "!!").
+  // Only reject UI words and text that is nothing visible (spaces / invisible characters).
+  const visibleChars = x.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '').trim();
+  if (!visibleChars || JUNK_NAMES.test(visibleChars)) return '';
+  return visibleChars;
 }
 
 const BAR_CSS = `
