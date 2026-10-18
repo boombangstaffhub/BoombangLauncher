@@ -8,6 +8,7 @@
 - Una vez dentro del juego, el launcher deja de vigilar cada cambio de la sala para el login.
 - El aviso de objetos solo trabaja cuando está activado y tiene objetos que vigilar.
 - **Parpadeos negros**: quitados dos ajustes forzados de la tarjeta gráfica, y la escala del juego ya no «pelea» con el propio juego (antes, cuando el juego cambiaba el tamaño del escenario, podía verse un fotograma mal colocado).
+- Cuando el propio juego cambia la resolución de su imagen (lo hace solo tras un tirón), se vuelve a dibujar al instante, sin esperar al límite de FPS: menos tiempo en negro.
 - Registro `parpadeos-log.txt` en la carpeta de datos para investigar parpadeos si siguen apareciendo.
 - Con un juego abierto, el launcher congela su fondo animado mientras no esté delante, y la ventana del BB Hub congela sus animaciones cuando no la estás usando: todo el PC queda para el juego.
 

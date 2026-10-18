@@ -8,10 +8,21 @@ function fpsLimitMain() {
   const raf = window.requestAnimationFrame.bind(window);
   let target = 0, last = 0, seq = 0, scheduled = false;
   const pending = new Map();
+  // When the game changes the size of its canvas, the browser clears it: the game must draw again at the very next
+  // screen refresh, never wait for the limit, or a black frame shows for a moment.
+  let canvases = [], sizes = '', listedAt = 0;
+  function canvasResized(ts) {
+    if (ts - listedAt > 2000) { canvases = [...document.getElementsByTagName('canvas')]; listedAt = ts; }
+    let now = '';
+    for (const c of canvases) now += c.width + 'x' + c.height + ';';
+    const changed = now !== sizes; sizes = now;
+    return changed;
+  }
   function pump(ts) {
     scheduled = false;
     if (!pending.size) return;
-    if (target > 0 && ts - last < 1000 / target - 1.5) { scheduled = true; raf(pump); return; }   // not yet: skip this screen refresh
+    const resized = canvasResized(ts);
+    if (!resized && target > 0 && ts - last < 1000 / target - 1.5) { scheduled = true; raf(pump); return; }   // not yet: skip this screen refresh
     last = ts;
     const cbs = [...pending.values()]; pending.clear();
     for (const cb of cbs) { try { cb(ts); } catch (e) { setTimeout(() => { throw e; }); } }
