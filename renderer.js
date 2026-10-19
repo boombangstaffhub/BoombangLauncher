@@ -17,8 +17,7 @@ const THEMES = [
   { id:'sakura',    name:'Sakura',         tag:'SAKURA',    desc:'Pétalos y luna llena',          sw:['#3e1432','#ff8fb8','#ffd1e3'] },
   { id:'neon',      name:'Neon Retro',     tag:'NEON',      desc:'Sol synthwave y rejilla',       sw:['#2c0644','#ff2fd0','#23f0ff'] },
   { id:'halloween', name:'Halloween',      tag:'HALLOWEEN', desc:'Luna, niebla y murciélagos',    sw:['#2c1038','#ff8a1c','#b6ff3b'] },
-  { id:'clouds',    name:'Mar de nubes',   tag:'NUBES',     desc:'Atardecer entre nubes',         sw:['#3a2a6e','#ff9ec4','#ffd9b8'] },
-  { id:'rocks',     name:'Islas flotantes',tag:'ROCAS',     desc:'Rocas flotantes y cristales',   sw:['#1c1438','#c47a5a','#6ef0ff'] }
+  { id:'clouds',    name:'Mar de nubes',   tag:'NUBES',     desc:'Atardecer entre nubes',         sw:['#3a2a6e','#ff9ec4','#ffd9b8'] }
 ];
 const OLD_THEME = { nebula:'sakura', cosmos:'ocean', midnight:'galaxy', violet:'galaxy', emerald:'aurora' };   // names used by earlier versions
 function applyTheme(theme){
