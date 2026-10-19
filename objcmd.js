@@ -14,7 +14,10 @@ function parseDiscord(text) {
   if (!m) return null;
   return { discord: true, status: DISCORD_STATUS[String(m[1] || '').toLowerCase()] || null, word: m[1] || '' };
 }
-function parseCommand(text) { return parseDiscord(text) || parseObject(text); }
+// ":add usuario" (also ":agregar"): Discord friend request.
+const ADD_RE = /^\s*:(?:add|agregar|añadir|anadir)(?:\s+(.*))?$/i;
+function parseAdd(text) { const m = ADD_RE.exec(String(text || '')); return m ? { add: true, user: String(m[1] || '').trim().split(/\s+/)[0] || '' } : null; }
+function parseCommand(text) { return parseDiscord(text) || parseAdd(text) || parseObject(text); }
 
 function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
   let host = null, shadow = null, lastField = null, swallowUntil = 0, searchSeq = 0;
@@ -149,8 +152,17 @@ function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
     notice(r && r.ok ? `Discord · ${STATUS_NAME[cmd.status]} ✓ (se queda así hasta que lo cambies)` : `Discord · ${(r && r.message) || 'no se pudo cambiar el estado.'}`);
   }
 
+  async function runAdd(cmd) {
+    if (!cmd.user) { notice('Discord · escribe  :add usuario  (su nombre de usuario de Discord)'); return; }
+    notice(`Discord · enviando solicitud de amistad a ${cmd.user}…`);
+    let r = null;
+    try { r = await ipcRenderer.invoke('discord:add-friend', cmd.user); } catch (_) {}
+    notice(r && r.ok ? `Discord · solicitud enviada a ${cmd.user} ✓` : `Discord · ${(r && r.message) || 'no se pudo enviar la solicitud.'}`);
+  }
+
   async function run(cmd) {
     if (cmd.discord) return runDiscord(cmd);
+    if (cmd.add) return runAdd(cmd);
     const seq = ++searchSeq;
     if (!cmd.refresh && !cmd.query) { setTitle('Precio de objetos'); setMessage('Escribe el nombre detrás del comando, por ejemplo  :objeto donut'); return; }
     setTitle(cmd.refresh ? 'Actualizando catálogo' : `Buscando «${cmd.query}»…`);
@@ -181,4 +193,4 @@ function create({ ipcRenderer, notice = () => {}, isGameFrame = () => true }) {
   return { start, run, close };
 }
 
-module.exports = { create, parseDiscord };
+module.exports = { create, parseDiscord, parseAdd };

@@ -99,6 +99,41 @@ const STATUS_SOURCE = want => `(async (want) => {
   return { ok: !seen || seen === want, seen: seen || '', desc: desc.slice(0, 200), menu: menuSeen, picked: (item.id || '') + '=' + txt(item).split('\\n')[0], sub };
 })(${JSON.stringify(want)})`;
 
+// Runs inside the Discord page: Amigos -> "Añadir amigo" -> writes the user name -> "Enviar solicitud de amistad",
+// then reads Discord's answer (sent / not found / already friends…).
+const ADD_FRIEND_SOURCE = user => `(async (user) => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const txt = e => ((e && (e.innerText || e.textContent)) || '').trim();
+  const waitFor = async (fn, ms = 4000) => { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await sleep(100); } return null; };
+  if (/\\/login|\\/register/.test(location.pathname)) return { ok: false, message: 'inicia sesión primero (burbuja de arriba).' };
+  if (location.pathname !== '/channels/@me') { history.pushState(null, '', '/channels/@me'); dispatchEvent(new PopStateEvent('popstate')); await sleep(600); }
+  const findInput = () => document.querySelector('input[name="add-friend"], input[aria-label*="nombre de usuario" i], input[aria-label*="username" i], input[placeholder*="nombre de usuario" i], input[placeholder*="username" i]');
+  let input = findInput();
+  if (!input) {
+    const tab = await waitFor(() => [...document.querySelectorAll('[role="tab"],button,div[role="button"]')].find(e => /^(a[ñn]adir amigo|add friend)$/i.test(txt(e))));
+    if (!tab) return { ok: false, message: 'no encuentro «Añadir amigo» en Discord.' };
+    tab.click();
+    input = await waitFor(findInput);
+  }
+  if (!input) return { ok: false, message: 'no encuentro el cuadro para añadir amigos.' };
+  input.focus();
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+  setter.call(input, user); input.dispatchEvent(new Event('input', { bubbles: true }));
+  await sleep(250);
+  const form = input.closest('form');
+  const btn = (form || document).querySelector('button[type="submit"]') || [...document.querySelectorAll('button')].find(b => /solicitud de amistad|friend request/i.test(txt(b)));
+  if (!btn) return { ok: false, message: 'no encuentro el botón de enviar solicitud.' };
+  const box = (form || input.parentElement).parentElement || document.body;
+  const before = txt(box);
+  btn.click();
+  const answer = await waitFor(() => { const now = txt(box); return now !== before && /(enviad|sent|correctamente|success|no ha funcionado|didn.t work|ya (sois|eres)|already|no existe|not found|comprueba|double check|hmm)/i.test(now) ? now : null; }, 6000);
+  if (!answer && document.querySelector('iframe[src*="hcaptcha"], iframe[src*="captcha"]')) return { ok: false, captcha: true, message: 'Discord pide comprobar que no eres un robot: completa el captcha en la ventana que se ha abierto.' };
+  const said = (answer || '').split('\\n').map(l => l.trim()).filter(l => /(enviad|sent|correctamente|success|no ha funcionado|didn.t work|ya (sois|eres)|already|no existe|not found|comprueba|double check|hmm)/i.test(l)).slice(0, 2).join(' ');
+  const ok = /(enviad|sent|correctamente|success)/i.test(said) && !/(no ha funcionado|didn.t work)/i.test(said);
+  setter.call(input, ''); input.dispatchEvent(new Event('input', { bubbles: true }));
+  return { ok, message: said || (answer ? '' : 'Discord no ha respondido.') };
+})(${JSON.stringify(user)})`;
+
 function isDiscordUrl(u) { try { return /(^|\.)discord\.com$/i.test(new URL(u).hostname); } catch (_) { return false; } }
 function isBlocked(u) { try { const x = new URL(u); return isDiscordUrl(u) && BLOCKED_PATH.test(x.pathname); } catch (_) { return false; } }
 function unreadFromTitle(title) { const m = /^\s*\((\d+)\)/.exec(String(title || '')); return m ? Number(m[1]) : 0; }
@@ -245,40 +280,69 @@ function createDiscord({ log = () => {}, BrowserWindow, session, shell, getBound
     if (win && !win.isDestroyed()) win.webContents.loadURL(HOME);
     return true;
   }
-  // ":discord online | afk | offline" from the game chat.
-  async function setStatus(want) {
-    if (!['online', 'idle', 'dnd', 'invisible'].includes(want)) return { ok: false, message: 'estado no válido.' };
+  // Runs `fn` with the Discord page drawn: a window that is not on screen doesn't draw, and Discord's menus and tabs
+  // only work when they are drawn. If it is hidden it is shown for a moment fully transparent and without a taskbar
+  // button (you don't see anything), then hidden again. Afterwards the page goes back to where it was.
+  async function withPage(fn) {
     ensure();
     for (let i = 0; i < 40 && !state.loggedIn; i++) { await new Promise(r => setTimeout(r, 500)); await readChats(); }   // just started: wait for it
     if (!state.loggedIn) return { ok: false, message: 'inicia sesión primero (burbuja de arriba).' };
-    const prev = mode;
-    // A window that is not on screen doesn't draw, and Discord's menus only open when they are drawn: show the page
-    // for a moment, fully transparent and without a taskbar button (you don't see anything), then hide it again.
+    const prev = mode, wc = win.webContents;
+    let prevPath = '';
+    try { prevPath = new URL(wc.getURL()).pathname; } catch (_) {}
     const wasVisible = win.isVisible();
     if (!wasVisible) {
       try { win.setOpacity(0); win.setSkipTaskbar(true); win.setFocusable(false); win.showInactive(); } catch (_) {}
       await new Promise(r => setTimeout(r, 450));
     }
-    setMode('list');                                  // the profile picture lives in the part hidden while chatting
+    setMode('list');                                  // what we need lives in the parts hidden while chatting
     let r = null;
-    for (let attempt = 0; attempt < 2; attempt++) {           // one more try if Discord still shows the old status
-      try { r = await win.webContents.executeJavaScript(STATUS_SOURCE(want), true); } catch (e) { r = { ok: false, message: 'no se pudo cambiar el estado.' }; }
-      log(`estado ${want} intento ${attempt + 1}: ${JSON.stringify(r)}`);
-      if (r && r.ok) break;
-      if (r && r.seen) r.message = 'Discord no ha cambiado el estado (sigue igual). Prueba otra vez.';
-      await new Promise(res => setTimeout(res, 500));
+    try { r = await fn(); } catch (_) { r = null; }
+    if (wasVisible && prevPath && /^\/channels\/@me\/\d+/.test(prevPath)) {
+      wc.executeJavaScript(`history.pushState(null,'',${JSON.stringify(prevPath)});dispatchEvent(new PopStateEvent('popstate'))`).catch(() => {});
     }
     if (!wasVisible) {
       await new Promise(res => setTimeout(res, 300));
       try { win.hide(); win.setOpacity(1); win.setSkipTaskbar(false); win.setFocusable(true); } catch (_) {}
     }
     setMode(wasVisible ? prev : 'list');
+    return r;
+  }
+
+  // ":discord online | afk | offline" from the game chat.
+  async function setStatus(want) {
+    if (!['online', 'idle', 'dnd', 'invisible'].includes(want)) return { ok: false, message: 'estado no válido.' };
+    const r = await withPage(async () => {
+      let res = null;
+      for (let attempt = 0; attempt < 2; attempt++) {           // one more try if Discord still shows the old status
+        try { res = await win.webContents.executeJavaScript(STATUS_SOURCE(want), true); } catch (e) { res = { ok: false, message: 'no se pudo cambiar el estado.' }; }
+        log(`estado ${want} intento ${attempt + 1}: ${JSON.stringify(res)}`);
+        if (res && res.ok) break;
+        if (res && res.seen) res.message = 'Discord no ha cambiado el estado (sigue igual). Prueba otra vez.';
+        await new Promise(ok => setTimeout(ok, 500));
+      }
+      return res;
+    });
     return r || { ok: false, message: 'no se pudo cambiar el estado.' };
+  }
+
+  // ":add usuario" from the game chat: friend request on Discord.
+  async function addFriend(user) {
+    user = String(user || '').trim().replace(/^@/, '');
+    if (!/^[\w.]{2,32}(#\d{4})?$/.test(user)) return { ok: false, message: `«${user}» no parece un usuario de Discord.` };
+    const r = await withPage(async () => {
+      let res = null;
+      try { res = await win.webContents.executeJavaScript(ADD_FRIEND_SOURCE(user), true); } catch (_) {}
+      log(`añadir ${user}: ${JSON.stringify(res)}`);
+      return res;
+    });
+    if (r && r.captcha) openLogin(null);              // the captcha needs you: show the window
+    return r || { ok: false, message: 'no se pudo enviar la solicitud.' };
   }
 
   function quit() { clearInterval(poll); poll = null; if (win && !win.isDestroyed()) { win.__bbQuit = true; try { win.destroy(); } catch (_) {} } }
 
-  return { setStatus, ensure, openChat, openLogin, hide, detachFrom, logout, quit, state: () => state, readChats, isOpen: () => !!(win && !win.isDestroyed() && win.isVisible()) };
+  return { addFriend, setStatus, ensure, openChat, openLogin, hide, detachFrom, logout, quit, state: () => state, readChats, isOpen: () => !!(win && !win.isDestroyed() && win.isVisible()) };
 }
 
-module.exports = { STATUS_SOURCE, createDiscord, isBlocked, isDiscordUrl, unreadFromTitle, LIST_SOURCE, HOME, PARTITION };
+module.exports = { ADD_FRIEND_SOURCE, STATUS_SOURCE, createDiscord, isBlocked, isDiscordUrl, unreadFromTitle, LIST_SOURCE, HOME, PARTITION };
