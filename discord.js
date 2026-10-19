@@ -59,6 +59,22 @@ const LIST_SOURCE = `(() => {
   return { loggedIn, chats: [...out.values()].filter(c => c.name) };
 })()`;
 
+// Runs inside the Discord page: closes your profile card / menus if one stayed open (Escape, then a click on your
+// picture, which opens and closes that card).
+const CLOSE_POPOUTS_SOURCE = `(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const open = () => [...document.querySelectorAll('[role="dialog"],[class*="popout"],[role="menu"]')].find(d => /editar perfil|edit profile|no molestar|en l[ií]nea|invisible|ausente|do not disturb|online/i.test(d.innerText || ''));
+  for (const target of [document.activeElement || document.body, document, window]) {
+    for (const t of ['keydown', 'keyup']) target.dispatchEvent(new KeyboardEvent(t, { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true }));
+  }
+  await sleep(150);
+  if (open()) {
+    const av = document.querySelector('section[aria-label*="cuenta" i] [class*="avatar"], section[aria-label*="account" i] [class*="avatar"], [class*="panels_"] [class*="avatarWrapper"], [class*="panels_"] [class*="avatar"]');
+    if (av) { (av.closest('[role="button"],button') || av).click(); await sleep(200); }
+  }
+  return !open();
+})()`;
+
 // Runs inside the Discord page: changes YOUR status the same way you would by hand (picture at the bottom left ->
 // status -> "Para siempre"). want = online | idle | dnd | invisible.
 const STATUS_SOURCE = want => `(async (want) => {
@@ -91,6 +107,7 @@ const STATUS_SOURCE = want => `(async (want) => {
     if (forever) { hover(forever); forever.click(); } else item.click();
   } else item.click();
   await sleep(400); esc();
+  await (${CLOSE_POPOUTS_SOURCE});
   // Check: your picture at the bottom left says your status in its description (e.g. "Bear, No molestar").
   await sleep(300);
   const NOW = { online: /en l[ií]nea|disponible|online/i, idle: /ausente|inactivo|idle/i, dnd: /no molestar|do not disturb/i, invisible: /invisible|desconectad|offline/i };
@@ -242,6 +259,7 @@ function createDiscord({ log = () => {}, BrowserWindow, session, shell, getBound
     setMode('chat');
     const url = `${HOME}/${String(id).replace(/\D/g, '')}`;
     const wc = win.webContents;
+    wc.executeJavaScript(CLOSE_POPOUTS_SOURCE, true).catch(() => {});
     wc.executeJavaScript(`(function(){ if (!document.querySelector('a[href*="/channels/@me"]')) return false; history.pushState(null, '', ${JSON.stringify(new URL(url).pathname)}); dispatchEvent(new PopStateEvent('popstate')); return true; })()`)
       .then(ok => { if (!ok) wc.loadURL(url); }).catch(() => wc.loadURL(url));
     attach(game);
@@ -298,6 +316,7 @@ function createDiscord({ log = () => {}, BrowserWindow, session, shell, getBound
     setMode('list');                                  // what we need lives in the parts hidden while chatting
     let r = null;
     try { r = await fn(); } catch (_) { r = null; }
+    try { await wc.executeJavaScript(CLOSE_POPOUTS_SOURCE, true); } catch (_) {}   // never leave a card or menu open
     if (wasVisible && prevPath && /^\/channels\/@me\/\d+/.test(prevPath)) {
       wc.executeJavaScript(`history.pushState(null,'',${JSON.stringify(prevPath)});dispatchEvent(new PopStateEvent('popstate'))`).catch(() => {});
     }
@@ -345,4 +364,4 @@ function createDiscord({ log = () => {}, BrowserWindow, session, shell, getBound
   return { addFriend, setStatus, ensure, openChat, openLogin, hide, detachFrom, logout, quit, state: () => state, readChats, isOpen: () => !!(win && !win.isDestroyed() && win.isVisible()) };
 }
 
-module.exports = { ADD_FRIEND_SOURCE, STATUS_SOURCE, createDiscord, isBlocked, isDiscordUrl, unreadFromTitle, LIST_SOURCE, HOME, PARTITION };
+module.exports = { CLOSE_POPOUTS_SOURCE, ADD_FRIEND_SOURCE, STATUS_SOURCE, createDiscord, isBlocked, isDiscordUrl, unreadFromTitle, LIST_SOURCE, HOME, PARTITION };
