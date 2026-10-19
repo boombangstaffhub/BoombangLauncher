@@ -87,8 +87,13 @@ const STATUS_SOURCE = want => `(async (want) => {
     const forever = await waitFor(() => items().find(e => /para siempre|forever|indefinid/i.test(txt(e))), 1200);
     if (forever) { hover(forever); forever.click(); } else item.click();
   } else item.click();
-  await sleep(300); esc();
-  return { ok: true };
+  await sleep(400); esc();
+  // Check: your picture at the bottom left says your status in its description (e.g. "Bear, No molestar").
+  await sleep(300);
+  const NOW = { online: /en l[ií]nea|disponible|online/i, idle: /ausente|inactivo|idle/i, dnd: /no molestar|do not disturb/i, invisible: /invisible|desconectad|offline/i };
+  const desc = [...document.querySelectorAll('section[aria-label*="cuenta" i] [aria-label], section[aria-label*="account" i] [aria-label], [class*="panels_"] [aria-label]')].map(e => e.getAttribute('aria-label')).join(' | ');
+  const seen = Object.keys(NOW).find(k => NOW[k].test(desc));
+  return { ok: !seen || seen === want, seen: seen || '', desc: desc.slice(0, 200) };
 })(${JSON.stringify(want)})`;
 
 function isDiscordUrl(u) { try { return /(^|\.)discord\.com$/i.test(new URL(u).hostname); } catch (_) { return false; } }
@@ -253,7 +258,12 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
     }
     setMode('list');                                  // the profile picture lives in the part hidden while chatting
     let r = null;
-    try { r = await win.webContents.executeJavaScript(STATUS_SOURCE(want), true); } catch (e) { r = { ok: false, message: 'no se pudo cambiar el estado.' }; }
+    for (let attempt = 0; attempt < 2; attempt++) {           // one more try if Discord still shows the old status
+      try { r = await win.webContents.executeJavaScript(STATUS_SOURCE(want), true); } catch (e) { r = { ok: false, message: 'no se pudo cambiar el estado.' }; }
+      if (r && r.ok) break;
+      if (r && r.seen) r.message = 'Discord no ha cambiado el estado (sigue igual). Prueba otra vez.';
+      await new Promise(res => setTimeout(res, 500));
+    }
     if (!wasVisible) {
       await new Promise(res => setTimeout(res, 300));
       try { win.hide(); win.setOpacity(1); win.setSkipTaskbar(false); win.setFocusable(true); } catch (_) {}
