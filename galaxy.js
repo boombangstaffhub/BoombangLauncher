@@ -3,6 +3,8 @@
 //   inferno   rising embers + heat glow         ocean    light rays + bubbles + plankton
 //   sakura    falling cherry petals + moon      neon     synthwave sun + moving grid
 //   halloween full moon + fog + bats + sparks
+//   clouds    sunset sky, three layers of soft clouds drifting, birds
+//   rocks     floating rock islands with glowing crystals, distant peaks, mist and dust
 // Capped at ~30 fps, paused while the window is hidden, a single still frame with reduced motion.
 (() => {
   const canvas = document.getElementById('galaxy');
@@ -203,6 +205,167 @@
           g.addColorStop(0, 'rgba(170,150,200,.14)'); g.addColorStop(1, 'rgba(170,150,200,0)');
           ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.fill();
         }
+      };
+    },
+    clouds() {
+      // Every cloud is drawn ONCE into its own small picture (many soft puffs, lit on top, shaded below) and then only
+      // moved: light on the PC.
+      const S = Math.min(w, h);
+      const sprite = (cw, opa, lit, shade) => {
+        // One solid silhouette made of puffs (so no circles show inside), softly blurred, then lit from above.
+        const c = document.createElement('canvas'), ch = Math.round(cw * .6), pad = Math.round(cw * .06);
+        c.width = Math.round(cw) + pad * 2; c.height = ch + pad * 2;
+        const g = c.getContext('2d'), base = pad + ch * .82;
+        const puffs = Math.round(rnd(7, 11)), shape = [];
+        for (let i = 0; i < puffs; i++) {
+          const u = (i + .5) / puffs, r = cw * rnd(.1, .16) * (1.15 - Math.abs(u - .5) * 1.1);
+          shape.push([pad + cw * (.1 + .8 * u) + rnd(-.02, .02) * cw, base - r * rnd(.45, 1.05), r]);
+        }
+        g.filter = `blur(${Math.max(1, cw * .012)}px)`;
+        g.fillStyle = '#fff';
+        for (const [x, y, r] of shape) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+        g.fillRect(pad + cw * .12, base - cw * .06, cw * .76, cw * .06);
+        g.filter = 'none';
+        g.globalCompositeOperation = 'source-atop';
+        const top = Math.min(...shape.map(p => p[1] - p[2]));
+        const body = g.createLinearGradient(0, top, 0, base);
+        body.addColorStop(0, `rgb(${lit})`); body.addColorStop(.55, `rgb(${lit})`); body.addColorStop(1, `rgb(${shade})`);
+        g.fillStyle = body; g.fillRect(0, 0, c.width, c.height);
+        for (const [x, y, r] of shape) {                         // a soft highlight on each puff, towards the sun
+          const hl = g.createRadialGradient(x + r * .25, y - r * .45, 0, x + r * .25, y - r * .45, r * .9);
+          hl.addColorStop(0, 'rgba(255,250,240,.55)'); hl.addColorStop(1, 'rgba(255,250,240,0)');
+          g.fillStyle = hl; g.fillRect(x - r * 1.2, y - r * 1.6, r * 2.4, r * 2.4);
+        }
+        g.globalCompositeOperation = 'source-over';
+        c.__opa = opa;
+        return c;
+      };
+      const layers = [
+        { n: 6, size: [.20, .30], y: [.16, .40], sp: .006, opa: .42, lit: '214,170,214', shade: '104,78,158', par: 4 },
+        { n: 5, size: [.30, .44], y: [.36, .66], sp: .012, opa: .66, lit: '255,196,206', shade: '138,92,170', par: 9 },
+        { n: 4, size: [.44, .66], y: [.70, 1.02], sp: .022, opa: .9, lit: '255,226,214', shade: '160,104,176', par: 16 }
+      ].map(L => ({ ...L, items: Array.from({ length: L.n }, () => { const cw = S * rnd(L.size[0], L.size[1]) * 1.6; return { img: sprite(cw, L.opa, L.lit, L.shade), x: rnd(-.2, 1.1) * w, y: h * rnd(L.y[0], L.y[1]), bob: rnd(0, TAU) }; }) }));
+      const stars = makeStars(Math.round(Math.min(60, area() / 26000)), ['255,240,250', '255,255,255']);
+      const birds = []; let next = 3000;
+      return (t, dt) => {
+        drawStars(stars, t, 0, 0, h * .35);
+        const dusk = ctx.createLinearGradient(0, h * .35, 0, h);
+        dusk.addColorStop(0, 'rgba(255,120,170,0)'); dusk.addColorStop(.6, 'rgba(255,130,150,.22)'); dusk.addColorStop(1, 'rgba(255,170,120,.32)');
+        ctx.fillStyle = dusk; ctx.fillRect(0, h * .35, w, h * .65);
+        // low sun behind the clouds
+        const sx = w * .7, sy = h * .58, sr = S * .09;
+        const halo = ctx.createRadialGradient(sx, sy, sr * .3, sx, sy, sr * 6);
+        halo.addColorStop(0, 'rgba(255,200,150,.38)'); halo.addColorStop(.35, 'rgba(255,140,170,.14)'); halo.addColorStop(1, 'rgba(255,140,170,0)');
+        ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(sx, sy, sr * 6, 0, TAU); ctx.fill();
+        const sun = ctx.createRadialGradient(sx, sy - sr * .2, sr * .1, sx, sy, sr);
+        sun.addColorStop(0, 'rgba(255,248,225,.95)'); sun.addColorStop(1, 'rgba(255,190,150,.75)');
+        ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(sx, sy, sr, 0, TAU); ctx.fill();
+        for (const L of layers) {
+          for (const c of L.items) {
+            if (!reduce) { c.x += L.sp * dt * dpr; if (c.x > w + 20) { c.x = -c.img.width - rnd(0, w * .3); c.y = h * rnd(L.y[0], L.y[1]); } }
+            const y = c.y + Math.sin(t * .0004 + c.bob) * 3 * dpr + py * L.par * dpr;
+            ctx.globalAlpha = c.img.__opa; ctx.drawImage(c.img, c.x + px * L.par * dpr, y - c.img.height); ctx.globalAlpha = 1;
+          }
+          if (L === layers[0]) {                       // birds fly between the far and middle clouds
+            next -= dt;
+            if (next <= 0 && !reduce) { next = rnd(6000, 13000); const n = 3 + ((Math.random() * 4) | 0), y0 = h * rnd(.15, .4); for (let i = 0; i < n; i++) birds.push({ x: -30 - i * 18 * dpr, y: y0 + Math.abs(i - n / 2) * 9 * dpr, vx: rnd(.05, .07) * dpr, ph: rnd(0, TAU), s: rnd(.8, 1.2) * dpr }); }
+            ctx.strokeStyle = 'rgba(60,30,80,.55)'; ctx.lineWidth = 1.4 * dpr; ctx.lineCap = 'round';
+            for (let i = birds.length - 1; i >= 0; i--) {
+              const b = birds[i]; b.x += b.vx * dt; if (b.x > w + 40) { birds.splice(i, 1); continue; }
+              const f = Math.sin(t * .012 + b.ph) * 3 * b.s, k = 6 * b.s;
+              ctx.beginPath(); ctx.moveTo(b.x - k, b.y - f); ctx.quadraticCurveTo(b.x - k * .4, b.y - k * .5, b.x, b.y); ctx.quadraticCurveTo(b.x + k * .4, b.y - k * .5, b.x + k, b.y - f); ctx.stroke();
+            }
+          }
+        }
+      };
+    },
+    rocks() {
+      // Floating rock islands (each drawn ONCE into its own picture, then only moved), glowing crystals, peaks far away.
+      const S = Math.min(w, h);
+      const ridge = (yBase, amp, rough, col) => {
+        const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+        const pts = []; let y = 0, v = 0;
+        for (let x = 0; x <= w + 8; x += 8 * dpr) { v += rnd(-rough, rough) * dpr; v *= .9; y = Math.max(-amp, Math.min(amp, y + v)); pts.push([x, h * yBase + y - Math.abs(Math.sin(x / w * 7)) * amp * .9]); }
+        g.beginPath(); g.moveTo(0, h); for (const [x, yy] of pts) g.lineTo(x, yy); g.lineTo(w, h); g.closePath();
+        const gr = g.createLinearGradient(0, h * yBase - amp, 0, h); gr.addColorStop(0, col[0]); gr.addColorStop(1, col[1]);
+        g.fillStyle = gr; g.fill();
+        return c;
+      };
+      const far = ridge(.62, 60 * dpr, 3, ['rgba(70,60,120,.55)', 'rgba(30,20,60,.65)']);
+      const near = ridge(.80, 45 * dpr, 4, ['rgba(40,28,70,.85)', 'rgba(14,8,28,.95)']);
+      const island = (iw) => {
+        const ih = iw * 1.15, c = document.createElement('canvas'); c.width = Math.round(iw); c.height = Math.round(ih);
+        const g = c.getContext('2d'), top = ih * .22, cx = iw / 2;
+        // rocky body: flat top, jagged point below
+        const pts = [[iw * .04, top]];
+        const steps = 9;
+        for (let i = 1; i < steps; i++) { const u = i / steps, xx = iw * (.04 + .92 * u), depth = Math.sin(u * Math.PI) ** .8; pts.push([xx + rnd(-.03, .03) * iw, top + depth * (ih - top) * rnd(.55, 1) * (u > .35 && u < .65 ? 1 : .7)]); }
+        pts.push([iw * .96, top]);
+        g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts.slice(1)) g.lineTo(p[0], p[1]); g.closePath();
+        const body = g.createLinearGradient(0, top, iw * .3, ih); body.addColorStop(0, '#b0745a'); body.addColorStop(.35, '#6b4268'); body.addColorStop(1, '#241634');
+        g.fillStyle = body; g.fill();
+        g.save(); g.clip();
+        g.strokeStyle = 'rgba(255,210,170,.12)'; g.lineWidth = 2;            // layers of the rock
+        for (let k = 1; k < 6; k++) { g.beginPath(); const yy = top + k * (ih - top) / 7; g.moveTo(0, yy); for (let x = 0; x <= iw; x += iw / 8) g.lineTo(x, yy + rnd(-4, 4)); g.stroke(); }
+        const side = g.createLinearGradient(0, 0, iw, 0); side.addColorStop(0, 'rgba(255,170,120,.18)'); side.addColorStop(.5, 'rgba(0,0,0,0)'); side.addColorStop(1, 'rgba(10,0,30,.35)');
+        g.fillStyle = side; g.fillRect(0, 0, iw, ih); g.restore();
+        // grassy top
+        g.beginPath(); g.ellipse(cx, top, iw * .47, ih * .06, 0, 0, TAU);
+        const grass = g.createLinearGradient(0, top - ih * .06, 0, top + ih * .06); grass.addColorStop(0, '#9af0b0'); grass.addColorStop(1, '#2f8f78');
+        g.fillStyle = grass; g.fill();
+        for (let i = 0; i < 14; i++) { const x = iw * rnd(.08, .92); g.fillStyle = `rgba(30,110,90,${rnd(.5, .9)})`; g.beginPath(); g.moveTo(x, top + ih * .045); g.quadraticCurveTo(x + rnd(-3, 3), top + ih * rnd(.07, .12), x + rnd(-2, 2), top + ih * rnd(.08, .14)); g.lineTo(x + 2, top + ih * .045); g.fill(); }
+        // a little tree on bigger islands
+        if (iw > S * .2) { const tx2 = iw * rnd(.25, .7); g.fillStyle = '#4a2f3c'; g.fillRect(tx2 - iw * .01, top - ih * .12, iw * .02, ih * .12); g.fillStyle = '#5fd39a'; g.beginPath(); g.arc(tx2, top - ih * .14, iw * .07, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.arc(tx2 - iw * .02, top - ih * .16, iw * .03, 0, TAU); g.fill(); }
+        const crystals = Array.from({ length: 2 + ((Math.random() * 3) | 0) }, () => ({ x: iw * rnd(.3, .7), y: top + (ih - top) * rnd(.25, .6), s: iw * rnd(.03, .055), ph: rnd(0, TAU) }));
+        return { img: c, crystals, tip: [cx, ih * .97] };
+      };
+      const isles = [
+        { size: .30, x: .18, y: .52, par: 14, sp: .0007 }, { size: .18, x: .78, y: .30, par: 9, sp: .0009 },
+        { size: .12, x: .48, y: .22, par: 6, sp: .0011 }, { size: .22, x: .66, y: .66, par: 18, sp: .0006 }, { size: .09, x: .9, y: .5, par: 5, sp: .0012 }
+      ].map(o => ({ ...o, ...island(S * o.size * 1.25), ph: rnd(0, TAU) }));
+      const stars = makeStars(Math.round(Math.min(90, area() / 18000)), ['255,255,255', '200,230,255', '255,220,200']);
+      const dust = Array.from({ length: Math.round(Math.min(70, area() / 18000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, r: rnd(.6, 1.8) * dpr, vy: rnd(.004, .012) * dpr, ph: rnd(0, TAU) }));
+      const pebbles = [];
+      return (t, dt) => {
+        drawStars(stars, t, 0, 0, h * .55);
+        const mx = w * .3, my = h * .16, mr = S * .05;                     // big pale moon
+        const glow = ctx.createRadialGradient(mx, my, mr * .5, mx, my, mr * 5);
+        glow.addColorStop(0, 'rgba(190,220,255,.25)'); glow.addColorStop(1, 'rgba(190,220,255,0)');
+        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(mx, my, mr * 5, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(232,240,255,.8)'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fill();
+        ctx.drawImage(far, px * 3 * dpr, 0);
+        const mist = ctx.createLinearGradient(0, h * .55, 0, h * .85); mist.addColorStop(0, 'rgba(160,140,220,0)'); mist.addColorStop(.5, 'rgba(160,140,220,.12)'); mist.addColorStop(1, 'rgba(160,140,220,0)');
+        ctx.fillStyle = mist; ctx.fillRect(0, h * .55, w, h * .3);
+        const sorted = isles.slice().sort((a, b) => a.par - b.par);
+        for (const o of sorted) {
+          const bob = reduce ? 0 : Math.sin(t * o.sp + o.ph) * 9 * dpr;
+          const x = w * o.x - o.img.width / 2 + px * o.par * dpr, y = h * o.y - o.img.height / 2 + bob + py * o.par * dpr;
+          // soft shadow-light under the island
+          ctx.drawImage(o.img, x, y);
+          ctx.globalCompositeOperation = 'lighter';
+          for (const c of o.crystals) {
+            const a = .55 + .45 * Math.sin(t * .002 + c.ph), cx = x + c.x, cy = y + c.y;
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, c.s * 3.2); g.addColorStop(0, `rgba(110,240,255,${.45 * a})`); g.addColorStop(1, 'rgba(110,240,255,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, c.s * 3.2, 0, TAU); ctx.fill();
+            ctx.fillStyle = `rgba(190,250,255,${.7 + .3 * a})`; ctx.beginPath(); ctx.moveTo(cx, cy - c.s); ctx.lineTo(cx + c.s * .45, cy); ctx.lineTo(cx, cy + c.s * .7); ctx.lineTo(cx - c.s * .45, cy); ctx.closePath(); ctx.fill();
+          }
+          ctx.globalCompositeOperation = 'source-over';
+          if (!reduce && Math.random() < dt * .00025 * o.size * 10) pebbles.push({ x: x + o.tip[0] + rnd(-6, 6) * dpr, y: y + o.tip[1] - 6 * dpr, vy: 0, life: 1 });
+        }
+        ctx.fillStyle = 'rgba(200,170,190,.7)';
+        for (let i = pebbles.length - 1; i >= 0; i--) {
+          const p = pebbles[i]; p.vy += .00035 * dt * dpr; p.y += p.vy * dt; p.life -= dt * .0006;
+          if (p.life <= 0 || p.y > h) { pebbles.splice(i, 1); continue; }
+          ctx.globalAlpha = p.life; ctx.beginPath(); ctx.arc(p.x, p.y, 1.4 * dpr, 0, TAU); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.drawImage(near, px * 22 * dpr, py * 6 * dpr);
+        ctx.globalCompositeOperation = 'lighter';
+        for (const d of dust) {
+          if (!reduce) { d.y -= d.vy * dt; d.x += Math.sin(t * .0008 + d.ph) * .12 * dpr; if (d.y < -5) { d.y = h + 5; d.x = Math.random() * w; } }
+          ctx.fillStyle = `rgba(255,220,180,${.25 + .25 * Math.sin(t * .003 + d.ph)})`; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill();
+        }
+        ctx.globalCompositeOperation = 'source-over';
       };
     }
   };

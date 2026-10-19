@@ -2,6 +2,7 @@
 
 ## 1.7.0
 
+- **Dos diseños nuevos para el launcher**: **Mar de nubes** (atardecer con nubes suaves en tres capas que se mueven despacio, sol bajo y pájaros de vez en cuando) e **Islas flotantes** (islas de roca que flotan con cristales que brillan, montañas a lo lejos, niebla y polvo). Se eligen en el selector de diseño del launcher.
 - **Burbujas de chat de Discord (solo mensajes directos)**: actívalas en BB Hub → Cliente. Cuando alguien te escribe por privado aparece encima del juego una burbuja con **su foto de perfil** y el número de mensajes sin leer. Al pulsarla se abre solo esa conversación en una ventanita pequeña, sin abrir la app de Discord y sin servidores. × (o clic derecho) quita una burbuja; la burbuja de arriba lista todos tus chats. Se arrastran a donde quieras. Inicias sesión una vez (correo o QR del móvil); la sesión la guarda Discord, no el launcher.
 - **Tu estado de Discord desde el chat del juego**: `:discord online`, `:discord afk` (No molestar) u `:discord offline` (Invisible). Se queda así «para siempre» hasta que lo cambies, y el comando no se envía al chat.
 - **`:add usuario`** en el chat del juego envía una solicitud de amistad de Discord a ese usuario (por ejemplo, cuando alguien te dice «agrégame en Discord: xxx»). Te dice si se ha enviado o si Discord no lo encuentra. Tampoco se envía al chat.
