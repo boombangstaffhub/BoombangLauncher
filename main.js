@@ -365,8 +365,11 @@ ipcMain.handle('client:get-status', (_e, profileId) => {
 let discord = null;
 function getDiscord() {
   if (!discord) {
+    // Test version only: what happened with ":discord …" (discord-log.txt, rewritten each time, never piles up).
+    const dlog = [];
+    const log = app.isPackaged ? () => {} : line => { dlog.push(`${new Date().toLocaleTimeString('es-ES')}  ${line}`); try { fs.writeFileSync(path.join(DATA_ROOT, 'discord-log.txt'), dlog.slice(-30).join('\n') + '\n'); } catch (_) {} };
     discord = discordMod.createDiscord({
-      BrowserWindow, session, shell, icon: APP_ICON,
+      log, BrowserWindow, session, shell, icon: APP_ICON,
       getBounds: () => readSettings().discordBounds,
       saveBounds: b => writeSettings({ ...readSettings(), discordBounds: b }),
       onState: st => { for (const id of games.keys()) sendClientCommand(id, { type: 'discord-state', state: st }).catch(() => {}); }

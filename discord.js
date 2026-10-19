@@ -81,10 +81,13 @@ const STATUS_SOURCE = want => `(async (want) => {
     const row = await waitFor(() => [...document.querySelectorAll('[role="dialog"] [role="button"],[role="dialog"] button,[class*="popout"] [role="button"],[class*="popout"] button,[role="menuitem"]')].find(e => ANY.test(txt(e))), 2000);
     if (row) { hover(row); row.click(); item = await waitFor(pick, 2000); }
   }
-  if (!item) { esc(); return { ok: false, message: 'no encuentro el menú de estado de Discord.' }; }
+  const menuSeen = items().map(e => (e.id || '') + '=' + txt(e).split('\\n')[0]).slice(0, 30).join(' ; ');
+  if (!item) { esc(); return { ok: false, message: 'no encuentro el menú de estado de Discord.', menu: menuSeen }; }
   hover(item);
+  let sub = '';
   if (want !== 'online') {
     const forever = await waitFor(() => items().find(e => /para siempre|forever|indefinid/i.test(txt(e))), 1200);
+    sub = forever ? 'forever:' + (forever.id || txt(forever)) : 'sin submenú';
     if (forever) { hover(forever); forever.click(); } else item.click();
   } else item.click();
   await sleep(400); esc();
@@ -93,14 +96,14 @@ const STATUS_SOURCE = want => `(async (want) => {
   const NOW = { online: /en l[ií]nea|disponible|online/i, idle: /ausente|inactivo|idle/i, dnd: /no molestar|do not disturb/i, invisible: /invisible|desconectad|offline/i };
   const desc = [...document.querySelectorAll('section[aria-label*="cuenta" i] [aria-label], section[aria-label*="account" i] [aria-label], [class*="panels_"] [aria-label]')].map(e => e.getAttribute('aria-label')).join(' | ');
   const seen = Object.keys(NOW).find(k => NOW[k].test(desc));
-  return { ok: !seen || seen === want, seen: seen || '', desc: desc.slice(0, 200) };
+  return { ok: !seen || seen === want, seen: seen || '', desc: desc.slice(0, 200), menu: menuSeen, picked: (item.id || '') + '=' + txt(item).split('\\n')[0], sub };
 })(${JSON.stringify(want)})`;
 
 function isDiscordUrl(u) { try { return /(^|\.)discord\.com$/i.test(new URL(u).hostname); } catch (_) { return false; } }
 function isBlocked(u) { try { const x = new URL(u); return isDiscordUrl(u) && BLOCKED_PATH.test(x.pathname); } catch (_) { return false; } }
 function unreadFromTitle(title) { const m = /^\s*\((\d+)\)/.exec(String(title || '')); return m ? Number(m[1]) : 0; }
 
-function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, saveBounds = () => {}, onState = () => {}, icon }) {
+function createDiscord({ log = () => {}, BrowserWindow, session, shell, getBounds = () => null, saveBounds = () => {}, onState = () => {}, icon }) {
   let win = null, parentGame = null, mode = 'list', poll = null, state = { loggedIn: false, chats: [] }, lastSig = '';
   const avatarCache = new Map();
 
@@ -260,6 +263,7 @@ function createDiscord({ BrowserWindow, session, shell, getBounds = () => null, 
     let r = null;
     for (let attempt = 0; attempt < 2; attempt++) {           // one more try if Discord still shows the old status
       try { r = await win.webContents.executeJavaScript(STATUS_SOURCE(want), true); } catch (e) { r = { ok: false, message: 'no se pudo cambiar el estado.' }; }
+      log(`estado ${want} intento ${attempt + 1}: ${JSON.stringify(r)}`);
       if (r && r.ok) break;
       if (r && r.seen) r.message = 'Discord no ha cambiado el estado (sigue igual). Prueba otra vez.';
       await new Promise(res => setTimeout(res, 500));
