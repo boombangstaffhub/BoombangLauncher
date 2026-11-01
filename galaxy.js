@@ -4,6 +4,8 @@
 //   sakura    falling cherry petals + moon      neon     synthwave sun + moving grid
 //   halloween full moon + fog + bats + sparks
 //   clouds    sunset sky, three layers of soft clouds drifting, birds
+//   leaves    village rooftops at sunset, leaves in the wind (gusts, whirls), smoke puffs
+//   storm     red moon, dark clouds, lightning, crows and falling feathers
 // Capped at ~30 fps, paused while the window is hidden, a single still frame with reduced motion.
 (() => {
   const canvas = document.getElementById('galaxy');
@@ -275,6 +277,170 @@
               ctx.beginPath(); ctx.moveTo(b.x - k, b.y - f); ctx.quadraticCurveTo(b.x - k * .4, b.y - k * .5, b.x, b.y); ctx.quadraticCurveTo(b.x + k * .4, b.y - k * .5, b.x + k, b.y - f); ctx.stroke();
             }
           }
+        }
+      };
+    },
+    leaves() {
+      // Ninja village at sunset: rooftops far away, green leaves blown by the wind (gusts and whirls), puffs of smoke.
+      const S = Math.min(w, h);
+      const layer = (fn) => { const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d')); return c; };
+      const hills = layer(g => {
+        g.beginPath(); g.moveTo(0, h);
+        for (let x = 0; x <= w; x += 6 * dpr) g.lineTo(x, h * .6 - Math.sin(x / w * 3.1 + 1) * h * .07 - Math.sin(x / w * 9) * h * .02);
+        g.lineTo(w, h); g.closePath();
+        const gr = g.createLinearGradient(0, h * .5, 0, h); gr.addColorStop(0, 'rgba(120,40,20,.55)'); gr.addColorStop(1, 'rgba(40,12,6,.7)');
+        g.fillStyle = gr; g.fill();
+      });
+      const roofs = layer(g => {
+        g.fillStyle = 'rgba(18,7,4,.96)';
+        let x = -20 * dpr; const base = h * .8;
+        while (x < w + 40) {
+          const bw = rnd(.05, .1) * w, tiers = Math.random() < .18 ? 3 : (Math.random() < .4 ? 2 : 1);
+          let top = base - rnd(.04, .09) * h, half = bw / 2, cx = x + half;
+          g.fillRect(x + bw * .12, top, bw * .76, base - top + 2);
+          for (let k = 0; k < tiers; k++) {                       // curved roofs with turned-up eaves
+            const rw = half * (1.25 - k * .22), rh = h * .028;
+            g.beginPath(); g.moveTo(cx - rw, top + rh * .2);
+            g.quadraticCurveTo(cx - rw * .55, top + rh * .35, cx - rw * .3, top - rh);
+            g.lineTo(cx + rw * .3, top - rh);
+            g.quadraticCurveTo(cx + rw * .55, top + rh * .35, cx + rw, top + rh * .2);
+            g.lineTo(cx + rw * .85, top + rh * .5); g.lineTo(cx - rw * .85, top + rh * .5); g.closePath(); g.fill();
+            if (k < tiers - 1) { g.fillRect(cx - half * .45, top - rh * 2.2, half * .9, rh * 1.4); top -= rh * 2.2; }
+          }
+          if (Math.random() < .5) {                              // warm window
+            g.save(); g.fillStyle = 'rgba(255,170,60,.55)'; g.fillRect(cx - bw * .08, base - (base - top) * .45, bw * .16, bw * .12); g.restore();
+          }
+          x += bw * rnd(.9, 1.3);
+        }
+        g.fillRect(0, base, w, h - base);
+      });
+      const N = Math.round(Math.min(60, area() / 17000));
+      const leafCol = () => Math.random() < .8 ? [rnd(95, 130), rnd(55, 75), rnd(38, 50)] : [rnd(38, 52), rnd(80, 95), rnd(55, 62)];
+      const spawn = init => ({ x: init ? Math.random() * w : -rnd(10, 120) * dpr, y: Math.random() * h * .95, s: rnd(8, 15) * dpr, vx: rnd(.04, .09) * dpr, ph: rnd(0, TAU), spin: rnd(.002, .006), tilt: rnd(0, TAU), col: leafCol(), z: rnd(.6, 1.3) });
+      const leaves = Array.from({ length: N }, () => spawn(true));
+      let gust = 0, nextGust = 3000, whirl = null, nextWhirl = 7000;
+      const puffs = []; let nextPuff = 4000;
+      return (t, dt) => {
+        // sky glow + sun
+        const sky = ctx.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, 'rgba(255,120,40,0)'); sky.addColorStop(.55, 'rgba(255,120,40,.22)'); sky.addColorStop(.8, 'rgba(255,170,60,.3)');
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+        const sx = w * .68, sy = h * .55, sr = S * .13;
+        const halo = ctx.createRadialGradient(sx, sy, sr * .5, sx, sy, sr * 4); halo.addColorStop(0, 'rgba(255,150,60,.45)'); halo.addColorStop(1, 'rgba(255,120,40,0)');
+        ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(sx, sy, sr * 4, 0, TAU); ctx.fill();
+        const sun = ctx.createRadialGradient(sx, sy - sr * .3, sr * .1, sx, sy, sr); sun.addColorStop(0, '#fff0c0'); sun.addColorStop(.6, '#ffb347'); sun.addColorStop(1, '#ff7a2a');
+        ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(sx, sy, sr, 0, TAU); ctx.fill();
+        ctx.drawImage(hills, px * 4 * dpr, 0);
+        ctx.drawImage(roofs, px * 10 * dpr, py * 3 * dpr);
+        // smoke puffs (a ninja appearing… or just leaving)
+        nextPuff -= dt;
+        if (nextPuff <= 0 && !reduce) { nextPuff = rnd(3500, 8000); const cx = rnd(.1, .9) * w, cy = h * rnd(.62, .78); for (let i = 0; i < 9; i++) puffs.push({ x: cx + rnd(-14, 14) * dpr, y: cy + rnd(-8, 8) * dpr, r: rnd(6, 12) * dpr, vr: rnd(.02, .045) * dpr, vy: -rnd(.005, .02) * dpr, life: 1 }); }
+        for (let i = puffs.length - 1; i >= 0; i--) {
+          const p = puffs[i]; p.r += p.vr * dt; p.y += p.vy * dt; p.life -= dt * .0008;
+          if (p.life <= 0) { puffs.splice(i, 1); continue; }
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r); g.addColorStop(0, `rgba(255,240,225,${.5 * p.life})`); g.addColorStop(1, 'rgba(255,240,225,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+        }
+        // wind: gusts and the odd whirlwind
+        nextGust -= dt; if (nextGust <= 0) { nextGust = rnd(5000, 11000); gust = 1; }
+        gust = Math.max(0, gust - dt * .0006);
+        nextWhirl -= dt;
+        if (nextWhirl <= 0 && !reduce) { nextWhirl = rnd(9000, 16000); whirl = { x: -w * .1, y: h * rnd(.3, .65), r: S * rnd(.12, .2), life: 1 }; }
+        if (whirl) { whirl.x += .12 * dpr * dt; whirl.life = whirl.x > w * 1.1 ? 0 : 1; if (!whirl.life) whirl = null; }
+        for (let i = 0; i < leaves.length; i++) {
+          const L = leaves[i];
+          if (!reduce) {
+            const wind = (1 + gust * 3.5) * L.z;
+            L.x += L.vx * wind * dt; L.y += Math.sin(t * .0012 + L.ph) * .05 * dpr * dt * .3 + .006 * dpr * dt;
+            if (whirl) {
+              const dx = L.x - whirl.x, dy = L.y - whirl.y, d = Math.hypot(dx, dy);
+              if (d < whirl.r * 1.4) { const a = Math.atan2(dy, dx) + .004 * dt, rr = Math.max(whirl.r * .25, d * .985); L.x = whirl.x + Math.cos(a) * rr; L.y = whirl.y + Math.sin(a) * rr; }
+            }
+            L.tilt += L.spin * dt * (1 + gust);
+            if (L.x > w + 30 || L.y > h + 30) leaves[i] = spawn(false);
+          }
+          const flip = Math.sin(t * .003 + L.ph);
+          ctx.save(); ctx.translate(L.x + px * 12 * L.z * dpr, L.y + py * 8 * dpr); ctx.rotate(L.tilt); ctx.scale(1, .35 + .65 * Math.abs(flip));
+          ctx.fillStyle = `hsl(${L.col[0]},${L.col[1]}%,${L.col[2] + (flip > 0 ? 6 : -4)}%)`;
+          ctx.beginPath(); ctx.moveTo(-L.s, 0); ctx.quadraticCurveTo(0, -L.s * .55, L.s, 0); ctx.quadraticCurveTo(0, L.s * .55, -L.s, 0); ctx.fill();
+          ctx.strokeStyle = 'rgba(20,40,10,.45)'; ctx.lineWidth = .8 * dpr; ctx.beginPath(); ctx.moveTo(-L.s * .9, 0); ctx.lineTo(L.s * .9, 0); ctx.stroke();
+          ctx.restore();
+        }
+      };
+    },
+    storm() {
+      // Night storm: a huge red moon, dark clouds, lightning that lights the sky, crows and falling black feathers.
+      const S = Math.min(w, h);
+      const cloud = (cw) => {
+        const c = document.createElement('canvas'), ch = Math.round(cw * .5); c.width = Math.round(cw); c.height = ch;
+        const g = c.getContext('2d'); g.filter = `blur(${Math.max(2, cw * .02)}px)`;
+        for (let i = 0; i < 12; i++) { const r = cw * rnd(.07, .13); g.fillStyle = `rgba(${rnd(28, 40)},${rnd(22, 30)},${rnd(48, 64)},.72)`; g.beginPath(); g.arc(cw * rnd(.22, .78), ch * rnd(.45, .62), r, 0, TAU); g.fill(); }
+        g.filter = 'none'; g.globalCompositeOperation = 'source-atop';
+        const rim = g.createLinearGradient(0, 0, 0, ch); rim.addColorStop(0, 'rgba(200,90,110,.35)'); rim.addColorStop(.4, 'rgba(0,0,0,0)'); g.fillStyle = rim; g.fillRect(0, 0, cw, ch);
+        return c;
+      };
+      const clouds = Array.from({ length: 6 }, () => ({ img: cloud(S * rnd(.5, .9)), x: rnd(-.3, 1) * w, y: h * rnd(-.05, .35), sp: rnd(.004, .01) * dpr }));
+      const stars = makeStars(Math.round(Math.min(70, area() / 22000)), ['255,255,255', '200,210,255']);
+      const feathers = Array.from({ length: Math.round(Math.min(26, area() / 40000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, s: rnd(13, 22) * dpr, vy: rnd(.012, .03) * dpr, ph: rnd(0, TAU), rot: rnd(-.6, .6) }));
+      const crows = []; let nextCrow = 2500;
+      let bolt = null, nextBolt = 2500, flash = 0;
+      const makeBolt = () => {
+        const x0 = w * rnd(.1, .9), y1 = h * rnd(.55, .9), pts = [[x0, -10]];
+        let x = x0, y = -10; const seg = 18 * dpr;
+        while (y < y1) { y += seg * rnd(.6, 1.4); x += rnd(-1, 1) * seg * 1.1; pts.push([x, y]); }
+        const branches = [];
+        for (let i = 2; i < pts.length - 2; i++) if (Math.random() < .22) { let [bx, by] = pts[i]; const b = [[bx, by]], dir = Math.random() < .5 ? -1 : 1; for (let k = 0; k < 5 + (Math.random() * 6 | 0); k++) { by += seg * rnd(.5, 1.1); bx += dir * seg * rnd(.3, 1.2); b.push([bx, by]); } branches.push(b); }
+        return { pts, branches, life: 1, flick: rnd(0, TAU) };
+      };
+      const stroke = (pts, wdt, col) => { ctx.strokeStyle = col; ctx.lineWidth = wdt; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const p of pts) ctx.lineTo(p[0], p[1]); ctx.stroke(); };
+      const drawCrow = (x, y, s, flap) => {
+        ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = 'rgba(6,4,10,.95)';
+        ctx.beginPath(); ctx.ellipse(0, 0, 7, 2.6, 0, 0, TAU); ctx.fill();                       // body
+        ctx.beginPath(); ctx.arc(7, -1, 2.2, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(9, -1.5); ctx.lineTo(12, -.6); ctx.lineTo(9, 0); ctx.fill();   // head + beak
+        ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(-12, -2); ctx.lineTo(-12, 2); ctx.closePath(); ctx.fill();                                         // tail
+        ctx.beginPath(); ctx.moveTo(-2, -1); ctx.quadraticCurveTo(-4, -10 * flap, -14, -8 * flap); ctx.quadraticCurveTo(-6, -3 * flap, 2, -1); ctx.fill();   // wings
+        ctx.beginPath(); ctx.moveTo(-1, -1); ctx.quadraticCurveTo(3, -9 * flap, 10, -9 * flap); ctx.quadraticCurveTo(5, -3 * flap, 3, -1); ctx.fill();
+        ctx.restore();
+      };
+      return (t, dt) => {
+        drawStars(stars, t, 0, 0, h * .5);
+        const mx = w * .74, my = h * .26, mr = S * .16;
+        const glow = ctx.createRadialGradient(mx, my, mr * .7, mx, my, mr * 3.2); glow.addColorStop(0, 'rgba(255,40,60,.32)'); glow.addColorStop(1, 'rgba(255,40,60,0)');
+        ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(mx, my, mr * 3.2, 0, TAU); ctx.fill();
+        const moon = ctx.createRadialGradient(mx - mr * .3, my - mr * .3, mr * .1, mx, my, mr); moon.addColorStop(0, '#ff8a7a'); moon.addColorStop(.6, '#d62238'); moon.addColorStop(1, '#7a0c1c');
+        ctx.fillStyle = moon; ctx.beginPath(); ctx.arc(mx + px * 3 * dpr, my + py * 3 * dpr, mr, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(90,0,15,.25)'; for (const [a, b, r] of [[-.3, -.2, .18], [.25, .1, .12], [-.05, .35, .1], [.35, -.35, .07]]) { ctx.beginPath(); ctx.arc(mx + a * mr, my + b * mr, r * mr, 0, TAU); ctx.fill(); }
+        for (const c of clouds) {
+          if (!reduce) { c.x += c.sp * dt; if (c.x > w + 20) { c.x = -c.img.width; c.y = h * rnd(-.05, .35); } }
+          ctx.drawImage(c.img, c.x + px * 6 * dpr, c.y + py * 4 * dpr);
+        }
+        // lightning
+        nextBolt -= dt;
+        if (nextBolt <= 0 && !reduce) { nextBolt = rnd(3000, 8000); bolt = makeBolt(); flash = 1; }
+        if (flash > 0) { ctx.fillStyle = `rgba(170,180,255,${.16 * flash})`; ctx.fillRect(0, 0, w, h); flash = Math.max(0, flash - dt * .004); }
+        if (bolt) {
+          bolt.life -= dt * .0028;
+          if (bolt.life <= 0) bolt = null;
+          else {
+            const a = bolt.life * (.6 + .4 * Math.abs(Math.sin(t * .05 + bolt.flick)));
+            ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round';
+            stroke(bolt.pts, 10 * dpr, `rgba(120,110,255,${.18 * a})`); stroke(bolt.pts, 4 * dpr, `rgba(150,190,255,${.5 * a})`); stroke(bolt.pts, 1.6 * dpr, `rgba(240,248,255,${a})`);
+            for (const b of bolt.branches) { stroke(b, 4 * dpr, `rgba(130,150,255,${.25 * a})`); stroke(b, 1 * dpr, `rgba(230,240,255,${.8 * a})`); }
+            ctx.globalCompositeOperation = 'source-over';
+          }
+        }
+        nextCrow -= dt;
+        if (nextCrow <= 0 && !reduce) { nextCrow = rnd(3000, 7000); const n = 1 + (Math.random() * 3 | 0), dir = Math.random() < .5 ? 1 : -1, y0 = h * rnd(.15, .55); for (let i = 0; i < n; i++) crows.push({ x: dir > 0 ? -40 - i * 30 * dpr : w + 40 + i * 30 * dpr, y: y0 + rnd(-20, 20) * dpr, vx: dir * rnd(.09, .14) * dpr, s: rnd(1.1, 1.8) * dpr, ph: rnd(0, TAU) }); }
+        for (let i = crows.length - 1; i >= 0; i--) {
+          const c = crows[i]; c.x += c.vx * dt; c.y += Math.sin(t * .003 + c.ph) * .15 * dpr; if (c.x < -80 || c.x > w + 80) { crows.splice(i, 1); continue; }
+          ctx.save(); if (c.vx < 0) { ctx.translate(c.x * 2, 0); ctx.scale(-1, 1); } drawCrow(c.x, c.y, c.s, Math.sin(t * .02 + c.ph)); ctx.restore();
+        }
+        for (const f of feathers) {
+          if (!reduce) { f.y += f.vy * dt; f.x += Math.sin(t * .0013 + f.ph) * .12 * dpr; if (f.y > h + 20) { f.y = -20; f.x = Math.random() * w; } }
+          const sw = Math.sin(t * .0016 + f.ph) * .6;
+          ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot + sw);
+          ctx.fillStyle = 'rgba(14,10,22,.85)'; ctx.beginPath(); ctx.moveTo(0, -f.s); ctx.quadraticCurveTo(f.s * .35, -f.s * .2, 0, f.s); ctx.quadraticCurveTo(-f.s * .35, -f.s * .2, 0, -f.s); ctx.fill();
+          ctx.strokeStyle = 'rgba(140,130,200,.35)'; ctx.lineWidth = .8 * dpr; ctx.beginPath(); ctx.moveTo(0, -f.s); ctx.lineTo(0, f.s * 1.15); ctx.stroke();
+          ctx.restore();
         }
       };
     }

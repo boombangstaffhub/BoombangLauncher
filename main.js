@@ -39,6 +39,7 @@ const { normalizeConfig: normalizeDropAlert } = require('./drops');
 const visual = require('./visual');
 const catalogMod = require('./catalog');
 const discordMod = require('./discord');
+const progressMod = require('./progress');
 const { Worker: ThreadWorker } = require('worker_threads');
 
 const DEFAULT_SETTINGS = {
@@ -534,6 +535,7 @@ async function createGame(profile) {
     if (discord) { discord.detachFrom(game); if (!games.size || (games.size === 1 && games.get(profile.id) === game)) { discord.quit(); discord = null; } }
     focusedUsers.delete(String(profile.id));
     try { endClientSession(profile.id, isClosing ? 'closed' : 'crashed'); } catch (_) {}
+    try { getProgress().end(profile.id); } catch (_) {}
     games.delete(profile.id);
     notifyLauncher('games:count', games.size);
     closingGames.delete(profile.id);
@@ -1501,6 +1503,14 @@ ipcMain.handle('hub:get-context', (_e, id) => {
     openMode: getHubData(profileId).openMode || DEFAULT_HUB_DATA.openMode
   };
 });
+// Progreso (BB Hub): coins and diamonds won or spent per session (progress.js), kept in progreso.json.
+let progressTracker = null;
+const getProgress = () => (progressTracker || (progressTracker = progressMod.createTracker({ fs, file: path.join(DATA_ROOT, 'progreso.json') })));
+ipcMain.on('progress:sample', (_e, id, values) => getProgress().sample(id, values));
+ipcMain.handle('progress:get', (_e, id) => getProgress().get(id));
+ipcMain.handle('progress:clear', (_e, id) => getProgress().clear(id));
+ipcMain.on('client:game-ready', (_e, id) => { const g = getGame(String(id || '')); if (g) { try { g.webContents.send('client-panel:command', { type: 'loading-done' }); } catch (_) {} } });
+ipcMain.handle('hub:launcher-theme', () => readSettings().theme || 'galaxy');
 ipcMain.handle('hub:get-data', (_e, id) => getHubData(String(id || '')));
 ipcMain.handle('hub:save-data', (_e, id, updates) => writeHubData(String(id || ''), updates && typeof updates === 'object' ? updates : {}));
 ipcMain.handle('hub:quick-action', async (_e, id, action) => quickAction(String(id || ''), String(action || '')));

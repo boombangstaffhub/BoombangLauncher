@@ -1025,8 +1025,21 @@ const discordBubble = require('./discord-bubble').create({
   isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)
 });
 
+// Progreso (BB Hub): coins / diamonds of this session, read from the top of the game (progress.js).
+const progress = require('./progress').create({
+  ipcRenderer,
+  getProfileId: () => profileId,
+  injectMainWorld: code => { try { require('electron').webFrame.executeJavaScript(code); } catch (_) {} },
+  isGameFrame: () => location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname),
+  worldLoaded: () => worldLoaded()
+});
+
+// Loading screen with the launcher's design while the game loads (loading-screen.js).
+const loadingScreen = require('./loading-screen').create({ ipcRenderer });
+
 function handleLauncherCommand(command) {
   if (!command) return;
+  loadingScreen.handleCommand(command);
   if (command.type === 'settings') applyRemoteSettings(command.settings);
   if (command.type === 'notice') openClientNotice(command.message);
   if (command.type === 'fps' && Number.isFinite(command.fps)) sendFps(command.fps);
@@ -1076,6 +1089,7 @@ async function installInnerGameStyle() {
   smartbar.start();
   drops.start();
   discordBubble.start();
+  progress.start();
   installStageTransformGuard();
   watchFlickers();
   renderStatusHud();
@@ -1095,6 +1109,7 @@ async function installInnerGameStyle() {
 function installOuterGameStyle() {
   if (outerStyleInstalled) return;
   outerStyleInstalled = true;
+  loadingScreen.show();
   const style = document.createElement('style');
   style.id = '__bb_launcher_outer_fill_v19';
   style.textContent = `
@@ -1177,6 +1192,7 @@ function startFrameLogic() {
     installFpsLimit();
     installInnerGameStyle();
     startLoginBridge();
+    require('./loading-screen').watchReady({ ipcRenderer, profileId, loginVisible: () => loginVisible(), worldLoaded: () => worldLoaded(), autoLoginStarted: () => autoLoginStarted });
   }
 }
 

@@ -2,7 +2,7 @@
 // Runs INSIDE the game page (main world). BoomBang draws the room with PixiJS: every object on screen is a "sprite"
 // that has the name of its picture (texture). Here we find the game's scene and, instead of looking at colours or
 // shapes, recognise objects by that name. The launcher's code talks to this through DOM events (strings only).
-//   in : document '__bb_pixi_in'  {type:'watch', keys:[...]} | {type:'learn', x, y} | {type:'probe'}
+//   in : document '__bb_pixi_in'  {type:'watch', keys:[...]} | {type:'learn', x, y} | {type:'probe'} | {type:'hud'}
 //   out: document '__bb_pixi_out' {type:'status'|'hit'|'learned'|'probe', ...}
 // It only reads the scene: it never changes, moves or clicks anything in the game.
 function pixiHookMain() {
@@ -196,6 +196,21 @@ function pixiHookMain() {
       let thumb = '';
       if (pick) { try { thumb = thumbOf(pick.sprite); } catch (_) {} delete pick.sprite; }
       emit('learned', { ok: Boolean(pick), ...(pick || {}), thumb, stage: Boolean(H.stage) });
+    } else if (m.type === 'hud') {
+      // Numbers written at the top of the screen (diamonds, coins…): read only, for the BB Hub "Progreso" tab.
+      if (!H.stage) find();
+      const out = []; let n = 0;
+      const sh = (H.renderer && H.renderer.screen && H.renderer.screen.height) || 0;
+      (function walk(o) {
+        if (!o || n++ > 15000 || !shown(o)) return;
+        let t = null; try { t = typeof o.text === 'string' || typeof o.text === 'number' ? String(o.text) : null; } catch (_) {}
+        if (t !== null && /^\s*\d[\d.,\s]*\s*$/.test(t)) {
+          const b = boundsOf(o);
+          if (b && b.w > 2 && (!sh || b.y < sh * .14)) out.push({ text: t.trim(), x: Math.round(b.x), y: Math.round(b.y), h: Math.round(b.h) });
+        }
+        const c = o.children; if (c) for (let i = 0; i < c.length; i++) walk(c[i]);
+      })(H.stage);
+      emit('hud', { ok: Boolean(H.stage), items: out.slice(0, 20) });
     } else if (m.type === 'probe') {
       if (!H.stage) find();
       const rows = []; let total = 0;
