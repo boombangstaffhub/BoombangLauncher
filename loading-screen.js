@@ -1,7 +1,7 @@
 'use strict';
 // Loading screen of the game window: while BoomBang loads, the animated background of the design chosen in the
 // launcher (galaxy.js) with "Cargando BoomBang…", instead of a black window. It fades out as soon as the game shows
-// the login or the room (the game frame tells the launcher, the launcher tells this page), or after 40 s at most.
+// the room has finished appearing (or the login, when there is nothing to type in automatically), or after 60 s at most.
 
 const fs = require('fs');
 const path = require('path');
@@ -54,8 +54,10 @@ function create({ ipcRenderer }) {
     </style><canvas id="galaxy"></canvas><div class="box"><div class="t">BOOMBANG</div><div class="h">Cargando <span>BoomBang…</span></div><div class="bar"><i></i></div></div>`;
     (document.body || document.documentElement).appendChild(el);
     document.documentElement.dataset.theme = theme;
+    // Light on the PC while the game loads behind it: 20 frames a second and normal (not high-DPI) resolution.
+    window.__BB_BG_FPS__ = 20; window.__BB_BG_DPR__ = 1;
     try { require('./galaxy.js'); } catch (_) {}     // the same animated scenes as the launcher
-    timer = setTimeout(remove, 40000);
+    timer = setTimeout(remove, 60000);
   }
 
   function handleCommand(cmd) { if (cmd && cmd.type === 'loading-done') remove(); }
@@ -64,17 +66,23 @@ function create({ ipcRenderer }) {
 
 // Game frame: has the game shown the login (with nothing to type in automatically) or the room?
 function watchReady({ ipcRenderer, profileId, loginVisible, worldLoaded, autoLoginStarted }) {
-  let since = 0;
+  let since = 0, worldAt = 0;
   const iv = setInterval(() => {
     let ready = false;
     try {
-      if (worldLoaded()) ready = true;
-      else if (loginVisible()) { if (!since) since = Date.now(); ready = Date.now() - since > (autoLoginStarted() ? 8000 : 2000); }   // auto-login failed? show it anyway
-      else since = 0;
+      if (worldLoaded()) {
+        // The room is there: give it a couple of seconds more to finish drawing (pictures, people) before showing it.
+        if (!worldAt) worldAt = Date.now();
+        ready = Date.now() - worldAt > 2500;
+      } else {
+        worldAt = 0;
+        if (loginVisible()) { if (!since) since = Date.now(); ready = Date.now() - since > (autoLoginStarted() ? 15000 : 2000); }   // auto-login stuck? show the login anyway
+        else since = 0;
+      }
     } catch (_) {}
     if (ready) { clearInterval(iv); try { ipcRenderer.send('client:game-ready', profileId); } catch (_) {} }
   }, 400);
-  setTimeout(() => clearInterval(iv), 60000);
+  setTimeout(() => clearInterval(iv), 70000);
 }
 
 module.exports = { create, watchReady, themeColors };

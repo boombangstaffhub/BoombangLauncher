@@ -453,7 +453,7 @@
     if (reduce) { ctx.clearRect(0, 0, w, h); scene(0, 0); }
   }
   function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    dpr = Math.min(window.devicePixelRatio || 1, window.__BB_BG_DPR__ || 1.5);   // the game's loading screen asks for less
     w = canvas.width = Math.floor(innerWidth * dpr);
     h = canvas.height = Math.floor(innerHeight * dpr);
     pickScene();
@@ -461,7 +461,7 @@
   function frame(t) {
     raf = requestAnimationFrame(frame);
     const dt = t - last;
-    if (dt < 33) return;                 // ~30 fps is plenty for a background
+    if (dt < 1000 / (window.__BB_BG_FPS__ || 30) - 1) return;   // ~30 fps is plenty for a background (20 on the loading screen)
     last = t;
     px += (tx - px) * .06; py += (ty - py) * .06;
     ctx.clearRect(0, 0, w, h);
