@@ -54,8 +54,9 @@ function create({ ipcRenderer }) {
     </style><canvas id="galaxy"></canvas><div class="box"><div class="t">BOOMBANG</div><div class="h">Cargando <span>BoomBang…</span></div><div class="bar"><i></i></div></div>`;
     (document.body || document.documentElement).appendChild(el);
     document.documentElement.dataset.theme = theme;
-    // Light on the PC while the game loads behind it: 20 frames a second and normal (not high-DPI) resolution.
-    window.__BB_BG_FPS__ = 20; window.__BB_BG_DPR__ = 1;
+    // Light on the PC while the game loads behind it: 15 frames a second, drawn at 60% size and stretched (a soft
+    // background doesn't need more): about a third of the work of the launcher's background.
+    window.__BB_BG_FPS__ = 15; window.__BB_BG_DPR__ = 0.6;
     try { require('./galaxy.js'); } catch (_) {}     // the same animated scenes as the launcher
     timer = setTimeout(remove, 60000);
   }
