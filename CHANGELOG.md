@@ -2,10 +2,10 @@
 
 ## 1.8.0
 
+- **SRT con el nuevo móvil del juego**: el nombre se lee solo de la ficha de arriba a la derecha (el nombre grande de su cabecera). El móvil de abajo, las líneas del chat y los carteles de la sala ya no se leen nunca. Si no hay ficha abierta, SRT no envía nada.
 - **Dos diseños nuevos para el launcher**: **Hojas al viento** (aldea al atardecer con tejados, hojas que vuelan con ráfagas y remolinos, y bocanadas de humo) y **Rayo nocturno** (luna roja gigante, nubes oscuras, rayos que iluminan el cielo, cuervos y plumas que caen).
 - **El BB Hub se viste con el diseño del launcher**: si eliges Sakura, Halloween, Hojas al viento… el Hub cambia a esos colores (también en la ventana aparte).
 - **Pantalla de carga** al abrir el juego: en vez de la ventana en negro, el fondo animado de tu diseño con «Cargando BoomBang…» hasta que la cuenta ha entrado y la sala ha terminado de aparecer (o el login, si no hay auto-login). Va a 20 imágenes por segundo para no quitarle potencia al juego mientras carga.
-- **Nueva pestaña «Progreso» en el BB Hub**: cuántos diamantes, oro y plata has ganado o gastado en la sesión y el tiempo jugado, y un resumen de las últimas sesiones al cerrar el juego. Solo lo ve quien abre esa pestaña; se lee de la parte de arriba del juego y se guarda en tu PC.
 
 ## 1.7.0
 

@@ -143,12 +143,3 @@
 .al-conn{font-weight:700}.al-conn.ok{color:#5dffa0}.al-conn.no{color:#ffd166}.al-wide{display:inline-flex;align-items:center;gap:4px;cursor:pointer}.al-wide input{margin:0}
 #__bb_hub_root[data-idle] *,#__bb_hub_root[data-idle] *::before,#__bb_hub_root[data-idle] *::after{animation-play-state:paused!important}
 
-/* Progreso */
-.pg-ic{font-size:18px;line-height:1;margin-bottom:4px}
-.pg-delta{margin-top:6px;font-size:11px;font-weight:800}
-.pg-delta em,.pg-cur em{font-style:normal}
-.pg-up{color:#5dffa0}.pg-down{color:#ff6b7a}.pg-eq{color:var(--bb-muted)}
-.pg-list{display:flex;flex-direction:column;gap:6px}
-.pg-row{display:flex;align-items:center;gap:14px;padding:9px 12px;border:1px solid var(--bb-line);border-radius:12px;background:rgba(255,255,255,.03)}
-.pg-when{flex:1;min-width:0}.pg-when b{display:block;font-size:11px;text-transform:capitalize}.pg-when span{font-size:10px;color:var(--bb-muted)}
-.pg-cur{font-size:11px;font-weight:800;white-space:nowrap}

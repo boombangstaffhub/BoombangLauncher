@@ -189,7 +189,6 @@ function create(api) {
     // The player's name is the BIGGEST text in the HEADER of the ficha (its upper part). Only text that sits inside
     // the ficha card counts, so big numbers elsewhere on screen (the ring countdown 10…0, scores…) are never read.
     // If that text is not a usable name we return nothing, instead of falling back to the status bubble.
-    const own = new Set(api.ownNames().map(normName).filter(Boolean));
     const card = rootEl.getBoundingClientRect();
     const headerBottom = card.top + Math.max(40, card.height * 0.35);
     let bestRaw = '', bestSize = -1, bestTop = 1e9, n = 0;
@@ -201,7 +200,6 @@ function create(api) {
       if (!text || text.length > 32 || !visible(el)) continue;
       const r = el.getBoundingClientRect();
       if (r.left < card.left - 2 || r.right > card.right + 2 || r.top < card.top - 2 || r.top > headerBottom) continue;   // outside the ficha header
-      if (own.has(normName(text))) continue;                       // our own name is never the target
       const size = parseFloat(getComputedStyle(el).fontSize) || 0;
       if (size > bestSize + 0.5 || (Math.abs(size - bestSize) <= 0.5 && r.top < bestTop)) { bestRaw = text; bestSize = size; bestTop = r.top; }
     }
@@ -220,10 +218,19 @@ function create(api) {
     }
     return card;
   }
+  // The ficha is the card at the TOP of the screen (top right). Other cards with a face picture — the new phone pad at
+  // the bottom right, chat lines, signs in the room — are never read.
+  function topCard(card) {
+    if (!card) return null;
+    const stage = document.querySelector('#BoomBangStage') || document.body;
+    const sr = stage.getBoundingClientRect(), r = card.getBoundingClientRect();
+    return r.top <= sr.top + sr.height * 0.2 && r.left + r.width / 2 >= sr.left + sr.width * 0.5 ? card : null;
+  }
   function scanFocusedUser() {
     try {
       const seen = new Set();
       const tryRoot = rootEl => {
+        rootEl = topCard(rootEl);
         if (!rootEl || seen.has(rootEl)) return '';
         seen.add(rootEl);
         return panelTitle(rootEl);
