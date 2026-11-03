@@ -31,6 +31,7 @@ const AUTH_STORE = path.join(DATA_ROOT, 'secure-profiles.json');
 const SETTINGS_FILE = path.join(DATA_ROOT, 'settings.json');
 const CLIENT_SETTINGS_FILE = path.join(DATA_ROOT, 'client-settings.json');
 const HUB_FILE = path.join(DATA_ROOT, 'client-hub.json');
+const SUBIR_FILE = path.join(DATA_ROOT, 'subir-datos.json');
 const APP_ICON = path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const LAUNCHER_VERSION = app.getVersion();
 const { pingHost, RttTracker, DEFAULT_PING_HOST } = require('./rtt');
@@ -39,6 +40,7 @@ const { normalizeConfig: normalizeDropAlert } = require('./drops');
 const visual = require('./visual');
 const catalogMod = require('./catalog');
 const discordMod = require('./discord');
+const { createSubirDatos, normalize: normalizeSubir, MIN_ESPERA: SUBIR_MIN_ESPERA, GIFTS: SUBIR_GIFTS } = require('./subir-datos');
 const { Worker: ThreadWorker } = require('worker_threads');
 
 const DEFAULT_SETTINGS = {
@@ -456,7 +458,11 @@ function createLauncher() {
       writeSettings({ ...readSettings(), windowWidth: width, windowHeight: height });
     }, 400);
   });
-  launcherWindow.on('closed', () => { launcherWindow = null; });
+  launcherWindow.on('closed', () => {
+    launcherWindow = null;
+    // Las ventanas de «Subir datos» son invisibles: si se cierra el launcher del todo, se paran también.
+    if (subirDatos && subirDatos.running && !(readSettings().minimizeToTray && tray && !isQuitting)) subirDatos.stop('launcher cerrado').then(() => { if (!games.size) app.quit(); });
+  });
 }
 
 async function createGame(profile) {
@@ -637,6 +643,7 @@ ipcMain.handle('profiles:logout', async (_e, id) => { clearCredentials(id); awai
 ipcMain.handle('profiles:hasSession', (_e, id) => Boolean(getCredentials(id)));
 ipcMain.handle('game:launch', async (_e, id) => {
   const profile = readProfiles().find(p => p.id === id); if (!profile) throw new Error('Perfil no encontrado.');
+  if (subirDatos && subirDatos.usesProfile(id)) throw new Error(`${profile.name} está subiendo datos. Páralo en «Subir datos» antes de abrir el juego con esta cuenta.`);
   await createGame(profile); return true;
 });
 ipcMain.handle('game:close', (_e, id) => closeGame(id));
@@ -1103,6 +1110,59 @@ ipcMain.handle('auth:save', (_e, payload) => {
   return saveCredentials(String(payload.profileId), payload.username, payload.password);
 });
 ipcMain.handle('auth:clear', (_e, id) => { clearCredentials(String(id || '')); return true; });
+
+// ---- Subir datos (dos perfiles en segundo plano: uno envía, otro acepta) ----
+let subirDatos = null;
+function getSubir() { if (!subirDatos) subirDatos = createSubirDatos({ notify: notifyLauncher }); return subirDatos; }
+function readSubirStore() { return safeReadJson(SUBIR_FILE, {}); }
+function readSubirConfig() { const st = readSubirStore(); return normalizeSubir(st.cfg || {}); }
+function readZonaPass() {
+  const enc = readSubirStore().zonaPassEnc;
+  try { return enc && safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(Buffer.from(enc, 'base64')) : ''; } catch (_) { return ''; }
+}
+function writeSubir(cfg, zonaPass) {
+  const st = readSubirStore();
+  st.cfg = normalizeSubir(cfg);
+  if (zonaPass !== undefined) {
+    if (!zonaPass) delete st.zonaPassEnc;
+    else if (safeStorage.isEncryptionAvailable()) st.zonaPassEnc = safeStorage.encryptString(String(zonaPass)).toString('base64');
+  }
+  safeWriteJson(SUBIR_FILE, st);
+  return st.cfg;
+}
+ipcMain.handle('subir:get', () => {
+  const m = getSubir();
+  return {
+    cfg: m.running ? m.cfg : readSubirConfig(),
+    hasZonaPass: Boolean(readZonaPass()),
+    status: m.status(),
+    log: m.logLines.slice(-200),
+    profiles: readProfiles().map(p => ({ id: p.id, name: p.name, hasAuth: Boolean(getCredentials(p.id)), gameOpen: Boolean(getGame(p.id)) })),
+    gifts: SUBIR_GIFTS,
+    minEspera: SUBIR_MIN_ESPERA
+  };
+});
+ipcMain.handle('subir:save', (_e, cfg, zonaPass) => {
+  const saved = writeSubir({ ...readSubirConfig(), ...(cfg || {}) }, zonaPass === null ? '' : (typeof zonaPass === 'string' && zonaPass ? zonaPass : undefined));
+  const m = getSubir();
+  return m.running ? m.live(saved) : saved;
+});
+ipcMain.handle('subir:start', async (_e, cfg, zonaPass) => {
+  const m = getSubir();
+  if (m.running) return { ok: false, message: 'Ya está en marcha.' };
+  const c = writeSubir({ ...readSubirConfig(), ...(cfg || {}) }, typeof zonaPass === 'string' && zonaPass ? zonaPass : undefined);
+  const profiles = readProfiles();
+  const pe = profiles.find(p => p.id === c.emisorId), pr = profiles.find(p => p.id === c.receptorId);
+  if (!pe || !pr) return { ok: false, message: 'Elige la cuenta que envía y la que recibe.' };
+  if (pe.id === pr.id) return { ok: false, message: 'Tienen que ser dos cuentas distintas.' };
+  if (!c.isla || !c.zona) return { ok: false, message: 'Escribe el nombre de la isla y del área.' };
+  const ce = getCredentials(pe.id), cr = getCredentials(pr.id);
+  if (!ce) return { ok: false, message: `${pe.name} no tiene el auto-login guardado. Ábrela una vez desde Perfiles e inicia sesión.` };
+  if (!cr) return { ok: false, message: `${pr.name} no tiene el auto-login guardado. Ábrela una vez desde Perfiles e inicia sesión.` };
+  for (const p of [pe, pr]) if (getGame(p.id)) return { ok: false, message: `Cierra el juego de ${p.name} antes de empezar (una cuenta no puede estar abierta dos veces).` };
+  return m.start({ cfg: c, emisor: { profile: pe, creds: ce }, receptor: { profile: pr, creds: cr }, zonaPass: readZonaPass() });
+});
+ipcMain.handle('subir:stop', () => getSubir().stop());
 
 
 async function detectClientGame(profileId) {
@@ -1670,6 +1730,6 @@ function removeTestLogs() {
 }
 app.whenReady().then(() => { ensureDataRoot(); removeTestLogs(); const settings = readSettings(); applyStartupSettings(settings); createLauncher(); createTray(); syncAutoclick(); syncVisualWatch(); scheduleUpdateCheck(); startServerMonitor(); setTimeout(() => { try { getCatalog().warmUp(); } catch (_) {} }, 20000); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createLauncher(); else showLauncher(); }); });
 app.on('before-quit', () => {
-  isQuitting = true; stopAutoclick(); if (discord) discord.quit(); if (serverTimer) clearInterval(serverTimer); try { tray?.destroy(); } catch (_) {} tray = null;
+  isQuitting = true; if (subirDatos && subirDatos.running) subirDatos.stop('saliendo'); stopAutoclick(); if (discord) discord.quit(); if (serverTimer) clearInterval(serverTimer); try { tray?.destroy(); } catch (_) {} tray = null;
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin' && (!readSettings().minimizeToTray || isQuitting)) app.quit(); });

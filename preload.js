@@ -30,6 +30,14 @@ contextBridge.exposeInMainWorld('bb', {
   client: { openPanel: id => ipcRenderer.invoke('client:open-panel', id) },
   app: { openExternal: url => ipcRenderer.invoke('app:openExternal', url), openPath: target => ipcRenderer.invoke('app:openPath', target), openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'), version: () => ipcRenderer.invoke('app:version') },
   diagnostics: { get: () => ipcRenderer.invoke('diagnostics:get') },
+  subir: {
+    get: () => ipcRenderer.invoke('subir:get'),
+    save: (cfg, zonaPass) => ipcRenderer.invoke('subir:save', cfg, zonaPass),
+    start: (cfg, zonaPass) => ipcRenderer.invoke('subir:start', cfg, zonaPass),
+    stop: () => ipcRenderer.invoke('subir:stop'),
+    onLog: cb => { const h = (_e, line) => cb(line); ipcRenderer.on('subir:log', h); return () => ipcRenderer.removeListener('subir:log', h); },
+    onStatus: cb => { const h = (_e, st) => cb(st); ipcRenderer.on('subir:status', h); return () => ipcRenderer.removeListener('subir:status', h); }
+  },
   alerts: { onChime: cb => { const handler = (_e, volume) => cb(volume); ipcRenderer.on('alerts:chime', handler); return () => ipcRenderer.removeListener('alerts:chime', handler); } },
   update: {
     check: () => ipcRenderer.invoke('update:check'),

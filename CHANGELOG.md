@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.9.0
+
+- **Nuevo: Subir datos** (en el menú de la izquierda). Dos de tus perfiles suben **besos, cócteles o flores** solos y en segundo plano: no se abre ninguna ventana y todo se controla desde el launcher.
+  - Eliges qué cuenta **envía** y cuál **recibe** entre tus perfiles con auto-login, sin volver a escribir usuario ni contraseña.
+  - Escribes el nombre de la **isla** y del **área** (por ejemplo NoCap → King). El launcher siempre entra por **Islas → Favoritas**, comprueba que el título de la isla es el correcto y, si el área pide contraseña, la escribe él (se guarda cifrada).
+  - Busca solo la **baldosa roja** y, pegada a ella, la **blanca**: la que recibe se pone en la roja y la que envía en la blanca. Si alguna vez no las encuentra, puedes poner sus posiciones a mano.
+  - La que envía ficha a la otra con un clic en la sombra de los pies, pulsa el dato y espera la **espera entre datos** (mínimo 3100 ms, que es lo que aguanta el juego sin colgarse; se puede subir). La que recibe acepta el cartel en cuanto sale.
+  - Si un envío se queda en «Enviado a», lo cancela y lo vuelve a enviar. Si el cartel lleva 2 minutos sin aceptarse, le da a la X.
+  - Si se cae el juego, se va la conexión o hay mantenimiento, reconecta y vuelve al área. Si sale un CAPTCHA, te enseña esa ventana para que lo resuelvas.
+  - Contador de datos, datos por minuto, cancelados, tiempo, estado de cada cuenta y registro en directo. El dato y el ritmo se cambian **sin parar**.
+  - Mientras una cuenta sube datos, el launcher no deja abrir el juego con ella (se desconectarían las dos).
+
 ## 1.8.0
 
 - **SRT con el nuevo móvil del juego**: el nombre se lee solo de la ficha de arriba a la derecha (el nombre grande de su cabecera). El móvil de abajo, las líneas del chat y los carteles de la sala ya no se leen nunca. Si no hay ficha abierta, SRT no envía nada.

@@ -20,6 +20,7 @@
       <button class="nav-item active" data-scroll="overview"><span>⌂</span><div><b>Inicio</b><small>Jugar y estado</small></div></button>
       <button class="nav-item" data-scroll="profiles"><span>◉</span><div><b>Perfiles</b><small>Tus cuentas</small></div></button>
       <button class="nav-item" data-scroll="newsSection"><span>◈</span><div><b>Noticias</b><small>Actualizaciones</small></div></button>
+      <button class="nav-item" data-scroll="subirSection"><span>❤</span><div><b>Subir datos</b><small>Besos, cócteles y flores</small></div></button>
       <button class="nav-item" id="quickHubSidebar"><span>✦</span><div><b>BB Hub</b><small>Smart Bar y cliente</small></div></button>
     </nav>
     <div class="sidebar-bottom">
@@ -69,6 +70,68 @@
       <div id="newsGrid" class="news-grid"></div>
     </section>
 
+
+    <section class="section-block" id="subirSection">
+      <div class="section-head"><div><span class="kicker">AUTOMÁTICO</span><h2>Subir datos</h2><p>Dos cuentas en segundo plano: una envía y la otra acepta. No se abre ninguna ventana; todo pasa aquí.</p></div><div class="section-tools"><button class="ghost" id="subirHelpBtn">¿Cómo funciona?</button></div></div>
+
+      <div class="subir-help hidden" id="subirHelp">
+        <div class="subir-help-grid">
+          <figure><img src="assets/subir-baldosas.jpg" alt="Baldosa roja y blanca"><figcaption><b>1 · Baldosa roja y blanca</b>El área tiene que tener una baldosa <b>roja</b> y, pegada a ella, una <b>blanca</b>. La cuenta que <b>recibe</b> se pone en la roja; la que <b>envía</b>, en la blanca. El launcher las encuentra solo.</figcaption></figure>
+          <figure><img src="assets/subir-envia.jpg" alt="La cuenta que envía"><figcaption><b>2 · La que envía</b>Ficha a la otra cuenta (clic en la sombra de los pies) y pulsa Beso, Cóctel o Flor. Espera a que lo acepte y vuelve a enviar.</figcaption></figure>
+          <figure><img src="assets/subir-recibe.jpg" alt="La cuenta que recibe"><figcaption><b>3 · La que recibe</b>En cuanto le sale el cartel, pulsa el tick verde. Si un envío se queda colgado, se cancela y se vuelve a enviar solo.</figcaption></figure>
+        </div>
+        <ul class="subir-reqs">
+          <li><b>Las dos cuentas en Perfiles con auto-login:</b> ábrelas una vez desde el launcher e inicia sesión.</li>
+          <li><b>La isla en Favoritas en las dos cuentas.</b> El launcher siempre entra por Islas → Favoritas.</li>
+          <li><b>Permisos en la isla</b> para las dos cuentas, o escribe la contraseña del área.</li>
+          <li><b>No abras esas cuentas en el juego</b> mientras suben datos: una cuenta no puede estar conectada dos veces.</li>
+        </ul>
+      </div>
+
+      <div class="subir-grid">
+        <div class="subir-card">
+          <div class="subir-card-title"><span>①</span> Cuentas</div>
+          <label>Envía <small>baldosa blanca</small><select id="subirEmisor" class="theme-select wide"></select></label>
+          <label>Recibe <small>baldosa roja</small><select id="subirReceptor" class="theme-select wide"></select></label>
+          <p class="subir-note" id="subirAccountsNote">Solo salen los perfiles con el auto-login guardado.</p>
+        </div>
+        <div class="subir-card">
+          <div class="subir-card-title"><span>②</span> Isla y área</div>
+          <label>Isla <small>tal cual sale en Favoritas</small><input id="subirIsla" maxlength="40" placeholder="Ej.: NoCap"></label>
+          <label>Área <small>dentro de la isla</small><input id="subirZona" maxlength="40" placeholder="Ej.: King"></label>
+          <label>Contraseña del área <small>solo si no tenéis permisos</small><input id="subirZonaPass" type="password" maxlength="60" placeholder="Sin contraseña"></label>
+        </div>
+        <div class="subir-card">
+          <div class="subir-card-title"><span>③</span> Dato y ritmo</div>
+          <label>Dato<select id="subirDato" class="theme-select wide"></select></label>
+          <label>Espera entre datos <small>ms · mínimo 3100</small><input id="subirEspera" type="number" min="3100" step="100"></label>
+          <details class="subir-adv"><summary>Más ajustes</summary>
+            <label>Clic de la que envía <small>ms</small><input id="subirClicE" type="number" min="10" step="10"></label>
+            <label>Clic de la que recibe <small>ms</small><input id="subirClicR" type="number" min="10" step="10"></label>
+            <label>Cancelar «Enviado a» tras <small>segundos</small><input id="subirAtascoE" type="number" min="2" step="1"></label>
+            <label>Darle a la X del cartel tras <small>segundos</small><input id="subirAtascoR" type="number" min="5" step="5"></label>
+            <div class="setting-row"><div><strong>Buscar las baldosas solo</strong><span>Si lo apagas, pon dónde están (x, y).</span></div><label class="switch"><input type="checkbox" id="subirTilesAuto"><span></span></label></div>
+            <div class="subir-tiles hidden" id="subirTilesManual">
+              <label>Roja x<input id="subirRx" type="number" min="0"></label><label>Roja y<input id="subirRy" type="number" min="0"></label>
+              <label>Blanca x<input id="subirWx" type="number" min="0"></label><label>Blanca y<input id="subirWy" type="number" min="0"></label>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="subir-run">
+        <div class="subir-stats">
+          <div><span>Datos</span><strong id="subirCount">0</strong></div>
+          <div><span>Por minuto</span><strong id="subirRate">0</strong></div>
+          <div><span>Cancelados</span><strong id="subirCancels">0</strong></div>
+          <div><span>Tiempo</span><strong id="subirTime">—</strong></div>
+          <div><span id="subirELabel">Envía</span><strong id="subirEState" class="subir-state">—</strong></div>
+          <div><span id="subirRLabel">Recibe</span><strong id="subirRState" class="subir-state">—</strong></div>
+        </div>
+        <button class="primary big" id="subirToggle">▶ Empezar</button>
+      </div>
+      <div class="subir-log" id="subirLog" aria-live="polite"></div>
+    </section>
     <footer><span id="footerTheme">BoomBang Launcher · Galaxy Crystal</span><span id="footerVersion">V—</span></footer>
   </main>
 </div>
@@ -97,4 +160,5 @@
 <div class="toast hidden" id="toast"></div>
 <script src="galaxy.js"></script>
 <script src="renderer.js"></script>
+<script src="subir.js"></script>
 </body></html>
