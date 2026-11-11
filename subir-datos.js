@@ -1,10 +1,11 @@
 // Subir datos: dos perfiles del launcher en segundo plano.
 //   EMISOR   → baldosa BLANCA, envía Beso / Cóctel / Flor
 //   RECEPTOR → baldosa ROJA, acepta con el tick verde
-// El juego corre en ventanas "fantasma": existen (para que el juego se dibuje y acepte
-// clics reales) pero son invisibles, no salen en la barra de tareas y no capturan el ratón.
-// Si sale un CAPTCHA no se salta: se enseña esa ventana para que lo resuelva la persona.
-const { BrowserWindow, shell } = require('electron');
+// El juego se dibuja "fuera de pantalla" (offscreen): no hay ninguna ventana y no depende
+// del monitor, así que sigue funcionando con las pantallas apagadas. Los clics son reales.
+// Si sale un CAPTCHA no se salta: se abre una ventana normal con esa cuenta para que lo
+// resuelva la persona y, en cuanto entra al juego, vuelve a segundo plano.
+const { BrowserWindow, shell, powerSaveBlocker } = require('electron');
 
 const GAME_URL = 'https://static.boombang.tv/betahtml5/index.html?lang=es';
 const MIN_ESPERA = 3100;        // por debajo el juego cuelga los envíos
@@ -87,7 +88,6 @@ class Bot {
     this.loginTries = 0;
     this.stateSince = Date.now();
     this.state = 'INICIO';
-    this.captchaShown = false;
     this.backoff = 30000;
   }
   log(kind, msg) { this.mgr.log(kind, msg, this.role); }
@@ -97,45 +97,54 @@ class Bot {
   alive() { return this.win && !this.win.isDestroyed(); }
   get stopped() { return this.mgr.stopped; }
 
-  open() {
+  // mode: 'offscreen' (normal, sin ventana) · 'visible' (solo para resolver un CAPTCHA)
+  open(mode = 'offscreen') {
+    this.mode = mode;
+    const visible = mode === 'visible';
     this.win = new BrowserWindow({
       width: 1280, height: 800, useContentSize: true,
-      show: true, paintWhenInitiallyHidden: true,
-      x: this.role === 'emisor' ? 0 : 40, y: 0,
-      skipTaskbar: true, focusable: false, opacity: 0,
-      title: `Subir datos — ${this.role === 'emisor' ? 'envía' : 'recibe'} (${this.profile.name})`,
+      show: visible, skipTaskbar: !visible, focusable: visible,
+      title: `BoomBang — resuelve el CAPTCHA de ${this.profile.name}`,
       backgroundColor: '#000000', autoHideMenuBar: true,
-      webPreferences: { partition: `persist:boombang-profile-${this.profile.id}`, contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, backgroundThrottling: false }
+      webPreferences: {
+        partition: `persist:boombang-profile-${this.profile.id}`,
+        offscreen: !visible,
+        contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, backgroundThrottling: false
+      }
     });
-    try { this.win.setIgnoreMouseEvents(true); this.win.setOpacity(0); } catch (_) {}
     const wc = this.win.webContents;
     wc.setAudioMuted(true);
-    try { wc.setFrameRate(30); } catch (_) {}
+    if (!visible) {
+      try { wc.setFrameRate(30); } catch (_) {}
+      try { wc.startPainting(); } catch (_) {}
+      wc.on('paint', (_e, _dirty, image) => { this.frame = image; this.frameAt = Date.now(); });
+    }
     wc.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
-    this.win.on('close', e => { if (!this.stopped) { e.preventDefault(); this.ghost(true); } });
+    this.win.on('close', e => {
+      if (this.stopped || this.swapping) return;
+      if (visible) { e.preventDefault(); this.log('warn', 'Resuelve el CAPTCHA en esa ventana; se cerrará sola cuando entre al juego.'); }
+    });
     wc.on('render-process-gone', (_e, d) => {
       if (this.stopped) return;
       this.log('fail', `El juego se ha cerrado (${d?.reason || '?'}). Recargo...`);
       this.inZone = false;
       setTimeout(() => this.reload('se cerró el juego'), 2000);
     });
-    this.log('info', `Conectando con ${this.profile.name}...`);
+    if (!visible) this.log('info', `Conectando con ${this.profile.name}...`);
     wc.loadURL(GAME_URL).catch(() => {});
   }
 
-  destroy() { try { if (this.alive()) this.win.destroy(); } catch (_) {} this.win = null; }
-
-  // true = invisible · false = visible (para resolver un CAPTCHA)
-  ghost(on) {
-    if (!this.alive()) return;
-    try {
-      this.win.setOpacity(on ? 0 : 1);
-      this.win.setIgnoreMouseEvents(on);
-      this.win.setFocusable(!on);
-      this.win.setSkipTaskbar(on);
-      if (!on) { this.win.center(); this.win.focus(); }
-    } catch (_) {}
+  // Cambia entre segundo plano y ventana visible (la sesión se conserva: misma partición).
+  reopen(mode) {
+    this.swapping = true;
+    this.destroy();
+    this.swapping = false;
+    this.inZone = false;
+    this.frame = null;
+    this.open(mode);
   }
+
+  destroy() { try { if (this.alive()) this.win.destroy(); } catch (_) {} this.win = null; }
 
   async reload(reason) {
     if (!this.alive() || this.stopped) return;
@@ -232,8 +241,15 @@ class Bot {
     const st = await this.read();
     const m = this.me(st);
     if (!m || !st.cv) return null;
-    let info = null;
-    try { info = bitmapInfo(await this.win.webContents.capturePage()); } catch (_) {}
+    let img = null;
+    if (this.mode !== 'visible') {
+      try { this.win.webContents.invalidate(); } catch (_) {}
+      const t0 = Date.now();
+      while ((!this.frame || this.frameAt < t0) && Date.now() - t0 < 1500) await sleep(50);
+      img = this.frame;
+    }
+    if (!img) { try { img = await this.win.webContents.capturePage(); } catch (_) {} }
+    const info = bitmapInfo(img);
     if (!info) return null;
     // Puntos dentro del rombo de la baldosa, lejos del centro (donde podría haber un Keko).
     const PTS = [[-26, 0], [26, 0], [-13, -7], [13, -7], [-13, 7], [13, 7], [0, -11], [0, 11]];
@@ -341,10 +357,18 @@ class Bot {
       }
       if (st.captcha) {
         this.setState('CAPTCHA');
-        if (!this.captchaShown) { this.log('warn', 'Ha salido un CAPTCHA: te abro esa ventana para que lo resuelvas. Luego se esconde sola.'); this.ghost(false); this.captchaShown = true; }
+        if (this.mode !== 'visible') {
+          this.log('warn', 'Ha salido un CAPTCHA: te abro una ventana con esta cuenta para que lo resuelvas e inicies sesión. Luego vuelve sola a segundo plano.');
+          this.reopen('visible');
+          await sleep(3000);
+        }
         await sleep(2000); continue;
       }
-      if (this.captchaShown) { this.captchaShown = false; this.ghost(true); this.log('ok', 'CAPTCHA resuelto, sigo.'); }
+      if (this.mode === 'visible' && st.game && !st.login) {
+        this.log('ok', 'Dentro del juego: cierro la ventana y sigo en segundo plano.');
+        this.reopen('offscreen');
+        await sleep(3000); continue;
+      }
       if (st.login) {
         this.setState('INICIANDO SESIÓN'); this.inZone = false;
         const wait = this.loginTries >= 5 ? 60000 : 20000;
@@ -455,6 +479,8 @@ function createSubirDatos({ notify }) {
       this.cfg = normalize(cfg);
       this.zonaPass = String(zonaPass || '');
       this.stopped = false; this.running = true; this.tilesFound = false;
+      // Que Windows no suspenda el programa mientras sube datos (las pantallas sí se pueden apagar).
+      try { this.psb = powerSaveBlocker.start('prevent-app-suspension'); } catch (_) { this.psb = null; }
       this.stats = { count: 0, cancels: 0, started: Date.now() };
       this.E = new Bot(this, 'emisor', emisor.profile, emisor.creds, this.cfg.baldosaE);
       this.R = new Bot(this, 'receptor', receptor.profile, receptor.creds, this.cfg.baldosaR);
@@ -469,6 +495,8 @@ function createSubirDatos({ notify }) {
     async stop(reason) {
       if (!this.running) return { ok: true };
       this.stopped = true; this.running = false;
+      try { if (this.psb != null && powerSaveBlocker.isStarted(this.psb)) powerSaveBlocker.stop(this.psb); } catch (_) {}
+      this.psb = null;
       await sleep(250);
       this.E && this.E.destroy(); this.R && this.R.destroy();
       this.log('info', `Parado${reason ? ` (${reason})` : ''}. ${this.stats.count} datos subidos.`);

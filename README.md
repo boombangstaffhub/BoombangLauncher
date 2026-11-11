@@ -16,7 +16,7 @@ Launcher de escritorio **no oficial** para jugar a [BoomBang](https://www.boomba
   - Atajos de teclado configurables para cada botón.
 - **BB Hub**: panel para configurar la Smart Bar, calibrar el upper, copiar la configuración a tus otros perfiles y ajustar la vista del cliente.
 - **Autoclick integrado** (desactivado por defecto): F3 guarda la posición del ratón, F1 empieza y F2 para (teclas y velocidad configurables en el BB Hub). Dentro de BoomBang los clics van directos al juego y **tu ratón queda libre**.
-- **Subir datos**: dos de tus perfiles suben besos, cócteles o flores en segundo plano, sin abrir ninguna ventana. Una cuenta envía desde la baldosa blanca y la otra acepta desde la roja. Necesitas: las dos cuentas con auto-login, la isla en Favoritas, permisos en la isla (o la contraseña del área) y una baldosa roja con una blanca al lado en el área.
+- **Subir datos**: dos de tus perfiles suben besos, cócteles o flores en segundo plano, sin abrir ninguna ventana y aunque apagues las pantallas. Una cuenta envía desde la baldosa blanca y la otra acepta desde la roja. Necesitas: las dos cuentas con auto-login, la isla en Favoritas, permisos en la isla (o la contraseña del área) y una baldosa roja con una blanca al lado en el área.
 - **Aviso de objetos**: un sonido suave cuando cae un objeto que le hayas enseñado (BB Hub → Avisos). Solo avisa; recogerlo lo haces tú.
 - **7 diseños animados** para el launcher: Galaxy Crystal, Aurora Boreal, Inferno, Océano, Sakura, Neon Retro y Halloween.
 
