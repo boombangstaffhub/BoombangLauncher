@@ -115,7 +115,7 @@ class Bot {
     const wc = this.win.webContents;
     wc.setAudioMuted(true);
     if (!visible) {
-      try { wc.setFrameRate(30); } catch (_) {}
+      try { wc.setFrameRate(12); } catch (_) {}   // para leer la ficha y el cartel basta; gasta mucho menos
       try { wc.startPainting(); } catch (_) {}
       wc.on('paint', (_e, _dirty, image) => { this.frame = image; this.frameAt = Date.now(); });
     }

@@ -342,9 +342,12 @@ function applyMotionEverywhere() {
 }
 
 // ---- Frame limit for the game windows (fps-limit.js) ----
-const FPS_CHOICES = [0, 30, 60, 90, 120, 144];
+const FPS_CHOICES = [0, 15, 30, 60, 90, 120, 144];
+const FPS_MINIMIZED = 5;   // minimizado no se ve: dibuja casi nada (la conexión y el juego siguen igual)
 function fpsFor(game) {
   const st = readSettings();
+  const hidden = (() => { try { return game.isMinimized() || !game.isVisible(); } catch (_) { return false; } })();
+  if (hidden) return FPS_MINIMIZED;
   const fg = FPS_CHOICES.includes(Number(st.fpsLimit)) ? Number(st.fpsLimit) : 60;
   const bg = FPS_CHOICES.includes(Number(st.fpsBackground)) ? Number(st.fpsBackground) : 30;
   const focused = (() => { try { return game.isFocused(); } catch (_) { return true; } })();
@@ -496,6 +499,7 @@ async function createGame(profile) {
   notifyLauncher('games:count', games.size);
   game.on('focus', () => pushFps(profile.id));
   game.on('blur', () => pushFps(profile.id));
+  for (const ev of ['minimize', 'restore', 'hide', 'show']) game.on(ev, () => pushFps(profile.id));
   endedClientSessions.delete(String(profile.id));
   startClientSession(profile.id);
   const initialClientSettings = getClientSettings(profile.id);
