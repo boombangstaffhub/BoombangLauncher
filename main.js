@@ -1117,7 +1117,7 @@ ipcMain.handle('auth:clear', (_e, id) => { clearCredentials(String(id || '')); r
 
 // ---- Subir datos (dos perfiles en segundo plano: uno envía, otro acepta) ----
 let subirDatos = null;
-function getSubir() { if (!subirDatos) subirDatos = createSubirDatos({ notify: notifyLauncher }); return subirDatos; }
+function getSubir() { if (!subirDatos) subirDatos = createSubirDatos({ notify: notifyLauncher, save: cfg => { try { writeSubir(cfg); } catch (_) {} } }); return subirDatos; }
 function readSubirStore() { return safeReadJson(SUBIR_FILE, {}); }
 function readSubirConfig() { const st = readSubirStore(); return normalizeSubir(st.cfg || {}); }
 function readZonaPass() {

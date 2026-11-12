@@ -5,6 +5,7 @@
   if (!api || !$('subirSection')) return;
 
   let minEspera = 3100;
+  let esperas = { 'Beso': 3100, 'Cóctel': 3100, 'Flor': 3100 };   // espera por dato
   let running = false;
   let startedAt = 0;
   let saveTimer = null;
@@ -36,7 +37,8 @@
     $('subirZonaPass').value = '';
     $('subirZonaPass').placeholder = hasZonaPass ? 'Guardada ✓ (escribe para cambiarla)' : 'Sin contraseña';
     $('subirDato').value = cfg.dato;
-    $('subirEspera').value = cfg.espera;
+    esperas = { ...esperas, ...(cfg.esperas || {}) };
+    $('subirEspera').value = esperas[cfg.dato] || minEspera;
     $('subirClicE').value = cfg.clicE;
     $('subirClicR').value = cfg.clicR;
     $('subirAtascoE').value = cfg.atascoE;
@@ -55,7 +57,7 @@
       isla: $('subirIsla').value.trim(),
       zona: $('subirZona').value.trim(),
       dato: $('subirDato').value,
-      espera: Math.max(minEspera, n('subirEspera', minEspera)),
+      esperas: { ...esperas, [$('subirDato').value]: Math.max(minEspera, n('subirEspera', minEspera)) },
       clicE: n('subirClicE', 70), clicR: n('subirClicR', 70),
       atascoE: n('subirAtascoE', 5), atascoR: n('subirAtascoR', 120),
       baldosasAuto: $('subirTilesAuto').checked,
@@ -89,6 +91,11 @@
 
   function applyStatus(st) {
     running = Boolean(st.running);
+    // Si el programa ha subido la espera de un dato, lo reflejamos (sin pisar lo que estés escribiendo).
+    if (st.cfg && st.cfg.esperas) {
+      esperas = { ...esperas, ...st.cfg.esperas };
+      if (document.activeElement !== $('subirEspera')) $('subirEspera').value = esperas[$('subirDato').value] || minEspera;
+    }
     startedAt = st.startedAt || 0;
     $('subirCount').textContent = st.count || 0;
     $('subirRate').textContent = st.perMin || 0;
@@ -144,6 +151,8 @@
   }
 
   // ---- eventos
+  $('subirDato').addEventListener('change', () => { $('subirEspera').value = esperas[$('subirDato').value] || minEspera; });
+  $('subirEspera').addEventListener('input', () => { const v = Number($('subirEspera').value); if (Number.isFinite(v) && v >= minEspera) esperas[$('subirDato').value] = v; });
   $('subirHelpBtn').onclick = () => $('subirHelp').classList.toggle('hidden');
   $('subirTilesAuto').addEventListener('change', () => $('subirTilesManual').classList.toggle('hidden', $('subirTilesAuto').checked));
   for (const id of ['subirEmisor', 'subirReceptor', 'subirIsla', 'subirZona', 'subirZonaPass', 'subirDato', 'subirEspera', 'subirClicE', 'subirClicR', 'subirAtascoE', 'subirAtascoR', 'subirTilesAuto', 'subirRx', 'subirRy', 'subirWx', 'subirWy']) {

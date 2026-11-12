@@ -20,7 +20,7 @@ const DEFAULTS = {
   emisorId: '', receptorId: '',
   isla: '', zona: '',
   dato: 'Beso',
-  espera: MIN_ESPERA,         // ms entre un dato aceptado y el siguiente envío
+  esperas: { 'Beso': MIN_ESPERA, 'Cóctel': MIN_ESPERA, 'Flor': MIN_ESPERA },  // ms entre un dato aceptado y el siguiente envío, por dato
   clicE: 70, clicR: 70,       // ms entre clics
   atascoE: 5,                 // s en "Enviado a" → Cancelar y reenviar
   atascoR: 120,               // s con el cartel sin aceptar → X
@@ -37,7 +37,12 @@ function normalize(cfg) {
   c.dato = GIFTS[c.dato] ? c.dato : 'Beso';
   c.isla = String(c.isla || '').trim().slice(0, 40);
   c.zona = String(c.zona || '').trim().slice(0, 40);
-  c.espera = clampNum(c.espera, MIN_ESPERA, MIN_ESPERA, 60000);
+  // Cada dato tiene su propia espera (el cóctel y la flor pueden necesitar más que el beso).
+  // Compatibilidad: una «espera» suelta de versiones anteriores era la del beso.
+  const src = cfg && cfg.esperas && typeof cfg.esperas === 'object' ? cfg.esperas : (cfg && cfg.espera != null ? { 'Beso': cfg.espera } : {});
+  c.esperas = {};
+  for (const g of Object.keys(GIFTS)) c.esperas[g] = Math.round(clampNum(src[g], MIN_ESPERA, MIN_ESPERA, 60000));
+  delete c.espera;
   c.clicE = clampNum(c.clicE, 70, 10, 2000);
   c.clicR = clampNum(c.clicR, 70, 10, 2000);
   c.atascoE = clampNum(c.atascoE, 5, 2, 600);
@@ -417,7 +422,7 @@ class Bot {
 }
 
 // --------------------------------------------------------------- gestor
-function createSubirDatos({ notify }) {
+function createSubirDatos({ notify, save }) {
   const mgr = {
     cfg: normalize({}),
     zonaPass: '',
@@ -564,7 +569,7 @@ function createSubirDatos({ notify }) {
 
           if (prevEnv && !s.env && !cancelled) {            // aceptado
             this.stats.count++; fails = 0;
-            nextAllowed = Date.now() + S().espera;
+            nextAllowed = Date.now() + S().esperas[S().dato];
             this.log('dato', `Dato #${this.stats.count} (${S().dato})`);
             this.pushStatus();
           }
@@ -578,7 +583,15 @@ function createSubirDatos({ notify }) {
               E.log('warn', `«Enviado a» colgado ${S().atascoE} s: Cancelar y vuelvo a enviar.`);
               cancelled = true;
               await E.clickText('Cancelar');
-              enviadoSince = 0; nextAllowed = Date.now() + S().espera;
+              enviadoSince = 0;
+              // Se ha colgado: este dato necesita más espera. Subimos 0,3 s (nunca baja de 3100) y se guarda.
+              const g = S().dato, before = S().esperas[g];
+              if (before < 10000) {
+                this.cfg.esperas[g] = Math.min(10000, before + 300);
+                this.log('info', `Espera del ${g.toLowerCase()} ajustada a ${this.cfg.esperas[g]} ms.`);
+                try { save && save(this.cfg); } catch (_) {}
+              }
+              nextAllowed = Date.now() + S().esperas[g];
               this.pushStatus();
               await sleep(300); continue;
             }
