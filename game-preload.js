@@ -13,7 +13,7 @@ let pendingCredentials = null;
 let saveCheckRunning = false;
 let outerStyleInstalled = false;
 let innerStyleInstalled = false;
-let clientSettings = { fitMode:'fill', zoom:100, showPerformance:false, showStatusBar:true, cleanMode:false, alwaysOnTop:false, muted:false, performanceMode:false, smartBar:true, smartBarX:10, smartBarY:10, smartBarCompact:false };
+let clientSettings = { qualityLock:true, fitMode:'fill', zoom:100, showPerformance:false, showStatusBar:true, cleanMode:false, alwaysOnTop:false, muted:false, performanceMode:false, smartBar:true, smartBarX:10, smartBarY:10, smartBarCompact:false };
 const SMARTBAR_BUILD = 'v0.22.0';
 let statusHud = null;
 let statusMessage = { state: 'connecting', latency: null };
@@ -250,6 +250,7 @@ async function loadClientSettings() {
   try {
     const saved = await ipcRenderer.invoke('client:get-settings', profileId);
     if (saved) clientSettings = { ...clientSettings, ...saved };
+    sendQuality();
     if (!clientSettings.smartBarDock) clientSettings.smartBarDock='bottom-center';
     // One-time reset when the bar was redesigned, so an old hidden state cannot leave it invisible.
     if (saved?.smartBarBuild !== SMARTBAR_BUILD) {
@@ -958,6 +959,7 @@ function applyRemoteSettings(settings) {
   if (!settings) return;
   const prevPerformance = !!clientSettings.showPerformance;
   clientSettings = { ...clientSettings, ...settings };
+  if ('qualityLock' in settings) sendQuality();
   applyClientVisualSettings(settings);
   if (clientSettings.showPerformance && !prevPerformance) startFpsCounter();
   if (!clientSettings.showPerformance && prevPerformance) stopFpsCounter();
@@ -1175,11 +1177,20 @@ function installFpsLimit() {
   setTimeout(() => { if (fpsWanted !== null) sendFps(fpsWanted); }, 1500);      // again, in case the page was not ready
 }
 
+// ---- Calidad fija (quality-lock.js runs inside the game page): stops the black flashes ----
+function sendQuality() { try { document.dispatchEvent(new CustomEvent('__bb_quality', { detail: JSON.stringify({ lock: clientSettings.qualityLock !== false }) })); } catch (_) {} }
+function installQualityLock() {
+  try { require('electron').webFrame.executeJavaScript(require('./quality-lock').SOURCE); } catch (_) {}
+  sendQuality();
+  setTimeout(sendQuality, 1500);
+}
+
 function startFrameLogic() {
   if (window.top === window) {
     installOuterGameStyle();
   } else if (location.hostname === 'static.boombang.tv' && /\/betahtml5\/game\.html/i.test(location.pathname)) {
     installFpsLimit();
+    installQualityLock();
     installInnerGameStyle();
     startLoginBridge();
     require('./loading-screen').watchReady({ ipcRenderer, profileId, loginVisible: () => loginVisible(), worldLoaded: () => worldLoaded(), autoLoginStarted: () => autoLoginStarted });

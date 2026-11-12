@@ -13,6 +13,7 @@
   - Si se cae el juego, se va la conexión o hay mantenimiento, reconecta y vuelve al área. Si sale un CAPTCHA, abre una ventana con esa cuenta para que lo resuelvas y, al entrar al juego, vuelve sola a segundo plano.
   - Contador de datos, datos por minuto, cancelados, tiempo, estado de cada cuenta y registro en directo. El dato y el ritmo se cambian **sin parar**.
   - Mientras una cuenta sube datos, el launcher no deja abrir el juego con ella (se desconectarían las dos).
+- **Adiós a los parpadeos negros: Calidad fija** (BB Hub → Ajustes, activada por defecto). BoomBang se baja la resolución él solo cuando cree que el PC va lento (con un tirón suelto o al minimizar) y luego la vuelve a subir poco a poco; cada cambio borra la imagen un instante y se ve negro. Ahora el launcher mantiene la mejor resolución y esos cambios ya no ocurren. Cambiar el tamaño de la ventana sigue funcionando igual. Si tu PC va muy justo, puedes desactivarla.
 - **Gasta menos mientras juegas**:
   - Un juego **minimizado** ahora dibuja a 5 FPS en vez de 30. No se ve, así que no hace falta; la conexión y el juego siguen igual y, al volver a abrirlo, recupera sus FPS normales.
   - Nueva opción de **15 FPS** en el BB Hub para los juegos que tienes detrás (útil con muchas cuentas abiertas).

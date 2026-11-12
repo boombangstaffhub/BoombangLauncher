@@ -62,6 +62,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const DEFAULT_CLIENT_SETTINGS = {
+  qualityLock: true,          // calidad fija: el juego no se baja la resolución solo (evita parpadeos negros)
   fitMode: 'fill',
   zoom: 100,
   showPerformance: false,

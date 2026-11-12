@@ -117,6 +117,7 @@ El launcher se actualiza solo:
 | `smartbar.js` | La Smart Bar (botones, upper rápido, atajos) |
 | `marker.js` | Screen Marker de Sendero Oculto |
 | `fps-limit.js` | Límite de FPS del juego |
+| `quality-lock.js` | Calidad fija: evita que el juego se baje la resolución solo (parpadeos negros) |
 | `catalog.js` / `objcmd.js` | Comando `:objeto` del chat: precio de rares del catálogo de la web |
 | `loading-screen.js` | Pantalla de carga con el diseño del launcher |
 | `discord.js` / `discord-bubble.js` | Burbujas de chat de Discord (mensajes directos) |
