@@ -20,7 +20,7 @@ const DEFAULTS = {
   emisorId: '', receptorId: '',
   isla: '', zona: '',
   dato: 'Beso',
-  esperas: { 'Beso': MIN_ESPERA, 'Cóctel': MIN_ESPERA, 'Flor': MIN_ESPERA },  // ms entre un dato aceptado y el siguiente envío, por dato
+  esperas: { 'Beso': 3100, 'Cóctel': 8800, 'Flor': 4900 },   // lo que aguanta el juego sin colgarse (medido)  // ms entre un dato aceptado y el siguiente envío, por dato
   clicE: 70, clicR: 70,       // ms entre clics
   atascoE: 5,                 // s en "Enviado a" → Cancelar y reenviar
   atascoR: 120,               // s con el cartel sin aceptar → X
@@ -41,7 +41,7 @@ function normalize(cfg) {
   // Compatibilidad: una «espera» suelta de versiones anteriores era la del beso.
   const src = cfg && cfg.esperas && typeof cfg.esperas === 'object' ? cfg.esperas : (cfg && cfg.espera != null ? { 'Beso': cfg.espera } : {});
   c.esperas = {};
-  for (const g of Object.keys(GIFTS)) c.esperas[g] = Math.round(clampNum(src[g], MIN_ESPERA, MIN_ESPERA, 60000));
+  for (const g of Object.keys(GIFTS)) c.esperas[g] = Math.round(clampNum(src[g], DEFAULTS.esperas[g], MIN_ESPERA, 60000));
   delete c.espera;
   c.clicE = clampNum(c.clicE, 70, 10, 2000);
   c.clicR = clampNum(c.clicR, 70, 10, 2000);

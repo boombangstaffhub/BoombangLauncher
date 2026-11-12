@@ -5,7 +5,7 @@
   if (!api || !$('subirSection')) return;
 
   let minEspera = 3100;
-  let esperas = { 'Beso': 3100, 'Cóctel': 3100, 'Flor': 3100 };   // espera por dato
+  let esperas = { 'Beso': 3100, 'Cóctel': 8800, 'Flor': 4900 };   // espera por dato
   let running = false;
   let startedAt = 0;
   let saveTimer = null;
@@ -124,6 +124,7 @@
       for (const g of d.gifts) { const o = document.createElement('option'); o.value = g; o.textContent = g; sel.append(o); }
       fillProfiles(d.profiles, d.cfg);
       fillForm(d.cfg, d.hasZonaPass);
+      if (!d.cfg.emisorId && !d.cfg.receptorId && !d.status.running) $('subirHelp').classList.remove('hidden');   // primera vez
       applyStatus(d.status);
       $('subirLog').innerHTML = '';
       (d.log || []).forEach(addLog);
@@ -153,7 +154,8 @@
   // ---- eventos
   $('subirDato').addEventListener('change', () => { $('subirEspera').value = esperas[$('subirDato').value] || minEspera; });
   $('subirEspera').addEventListener('input', () => { const v = Number($('subirEspera').value); if (Number.isFinite(v) && v >= minEspera) esperas[$('subirDato').value] = v; });
-  $('subirHelpBtn').onclick = () => $('subirHelp').classList.toggle('hidden');
+  $('subirHelpBtn').onclick = () => { $('subirHelp').classList.toggle('hidden'); if (!$('subirHelp').classList.contains('hidden')) $('subirHelp').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  $('subirHelpClose').onclick = () => $('subirHelp').classList.add('hidden');
   $('subirTilesAuto').addEventListener('change', () => $('subirTilesManual').classList.toggle('hidden', $('subirTilesAuto').checked));
   for (const id of ['subirEmisor', 'subirReceptor', 'subirIsla', 'subirZona', 'subirZonaPass', 'subirDato', 'subirEspera', 'subirClicE', 'subirClicR', 'subirAtascoE', 'subirAtascoR', 'subirTilesAuto', 'subirRx', 'subirRy', 'subirWx', 'subirWy']) {
     $(id).addEventListener('change', scheduleSave);

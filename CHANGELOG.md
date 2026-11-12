@@ -7,7 +7,8 @@
   - Escribes el nombre de la **isla** y del **área** (por ejemplo NoCap → King). El launcher siempre entra por **Islas → Favoritas**, comprueba que el título de la isla es el correcto y, si el área pide contraseña, la escribe él (se guarda cifrada).
   - Busca solo la **baldosa roja** y, pegada a ella, la **blanca**: la que recibe se pone en la roja y la que envía en la blanca. Si alguna vez no las encuentra, puedes poner sus posiciones a mano.
   - La que envía ficha a la otra con un clic en la sombra de los pies, pulsa el dato y espera la **espera entre datos** (mínimo 3100 ms, que es lo que aguanta el juego sin colgarse; se puede subir). La que recibe acepta el cartel en cuanto sale.
-  - **Cada dato tiene su propia espera.** El cóctel y la flor necesitan más que el beso: si uno se queda colgado, su espera sube 0,3 s sola y se guarda, así que la siguiente vez va bien desde el principio.
+  - **Cada dato tiene su propia espera**, ya ajustada a lo que aguanta el juego: beso 3,1 s, flor 4,9 s y cóctel 8,8 s. Si uno se queda colgado, su espera sube 0,3 s sola y se guarda.
+  - **«¿Cómo funciona?»** explica paso a paso qué preparar (auto-login, isla en Favoritas, permisos, baldosas roja y blanca), cómo trabaja, el ritmo de cada dato, qué puedes hacer mientras funciona y qué hacer si algo no va. Se abre sola la primera vez.
   - Si un envío se queda en «Enviado a», lo cancela y lo vuelve a enviar. Si el cartel lleva 2 minutos sin aceptarse, le da a la X.
   - **Funciona con las pantallas apagadas**: el juego se dibuja fuera de pantalla, sin depender del monitor, y Windows no suspende el launcher mientras sube datos.
   - Si se cae el juego, se va la conexión o hay mantenimiento, reconecta y vuelve al área. Si sale un CAPTCHA, abre una ventana con esa cuenta para que lo resuelvas y, al entrar al juego, vuelve sola a segundo plano.
