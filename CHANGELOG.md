@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.9.1
+
+- **Subir datos → «¿Cómo funciona?»** más corto y claro, en tres pasos con imágenes: tu isla en Favoritas con permisos para las dos cuentas, la baldosa roja (recibe) y la blanca (envía) del catálogo, y cómo se recupera solo si algo se cuelga, se va la conexión o hay mantenimiento.
+
 ## 1.9.0
 
 - **Nuevo: Subir datos** (en el menú de la izquierda). Dos de tus perfiles suben **besos, cócteles o flores** solos y en segundo plano: no se abre ninguna ventana y todo se controla desde el launcher.

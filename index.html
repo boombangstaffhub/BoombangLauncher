@@ -75,54 +75,11 @@
       <div class="section-head"><div><span class="kicker">AUTOMÁTICO</span><h2>Subir datos</h2><p>Dos cuentas en segundo plano: una envía y la otra acepta. No se abre ninguna ventana y sigue funcionando aunque apagues las pantallas.</p></div><div class="section-tools"><button class="ghost" id="subirHelpBtn">¿Cómo funciona?</button></div></div>
 
       <div class="subir-help hidden" id="subirHelp">
-        <div class="subir-help-head"><b>¿Cómo funciona Subir datos?</b><button class="ghost small" id="subirHelpClose">Cerrar</button></div>
-
-        <div class="subir-help-block">
-          <div class="subir-help-title">✔ Antes de empezar <small>solo la primera vez</small></div>
-          <ol class="subir-steps">
-            <li><b>Dos cuentas en Perfiles con el auto-login guardado.</b> Ábrelas una vez desde el launcher e inicia sesión; después ya no hace falta volver a escribir nada.</li>
-            <li><b>La isla en Favoritas en las dos cuentas.</b> El launcher siempre entra por Islas → Favoritas y comprueba que la isla es la que has escrito.</li>
-            <li><b>Permisos en la isla para las dos cuentas</b>, o escribe abajo la contraseña del área (se guarda cifrada).</li>
-            <li><b>Una baldosa roja y, pegada a ella, una blanca</b> dentro del área, sin nadie encima. El launcher las busca solo al entrar.</li>
-          </ol>
-        </div>
-
-        <div class="subir-help-block">
-          <div class="subir-help-title">⚙ Cómo trabaja</div>
-          <div class="subir-help-grid">
-            <figure><img src="assets/subir-baldosas.jpg" alt="Baldosa roja y blanca"><figcaption><b>1 · Cada una a su baldosa</b>La que <b>recibe</b> se pone en la roja y la que <b>envía</b> en la blanca.</figcaption></figure>
-            <figure><img src="assets/subir-envia.jpg" alt="La cuenta que envía"><figcaption><b>2 · La que envía</b>Ficha a la otra con un clic en la sombra de los pies, pulsa el dato y espera a que lo acepte.</figcaption></figure>
-            <figure><img src="assets/subir-recibe.jpg" alt="La cuenta que recibe"><figcaption><b>3 · La que recibe</b>En cuanto le sale el cartel, pulsa el tick verde. Y vuelta a empezar.</figcaption></figure>
-          </div>
-        </div>
-
-        <div class="subir-help-cols">
-          <div class="subir-help-block">
-            <div class="subir-help-title">⏱ El ritmo de cada dato</div>
-            <p>El juego necesita un tiempo entre regalo y regalo, y cada dato tiene el suyo:</p>
-            <div class="subir-rates"><span><b>Beso</b>3,1 s</span><span><b>Flor</b>4,9 s</span><span><b>Cóctel</b>8,8 s</span></div>
-            <p>Si un envío se queda en «Enviado a», se cancela, se vuelve a enviar y <b>la espera de ese dato sube sola</b> 0,3 s. Se guarda, así que la siguiente vez ya va bien. Puedes cambiarla a mano (mínimo 3100 ms).</p>
-          </div>
-          <div class="subir-help-block">
-            <div class="subir-help-title">☾ Mientras funciona</div>
-            <ul class="subir-reqs">
-              <li>Puedes seguir usando el launcher y <b>jugar con otras cuentas</b>.</li>
-              <li><b>No abras esas dos cuentas en el juego</b>: una cuenta no puede estar conectada dos veces.</li>
-              <li><b>Puedes apagar las pantallas.</b> Solo no apagues ni suspendas el ordenador.</li>
-              <li>Si se cae la conexión o hay mantenimiento, <b>vuelve solo</b> a la isla y sigue.</li>
-              <li>Si sale un CAPTCHA, se abre una ventana para que lo resuelvas; luego vuelve a segundo plano.</li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="subir-help-block">
-          <div class="subir-help-title">? Si algo no va</div>
-          <ul class="subir-reqs">
-            <li><b>«No veo la isla en Favoritas»</b>: añádela a favoritas en esa cuenta y revisa que el nombre esté escrito igual.</li>
-            <li><b>«El área pide contraseña»</b>: escríbela en «Contraseña del área» o da permisos en la isla a las dos cuentas.</li>
-            <li><b>«No encuentro la baldosa roja»</b>: comprueba que la roja y la blanca están juntas y sin nadie encima. Si aun así no las encuentra, en «Más ajustes» puedes poner su posición a mano.</li>
-            <li><b>Algunos «cancelados» al principio</b> con un dato nuevo son normales: es la espera ajustándose.</li>
-          </ul>
+        <div class="subir-help-head"><b>¿Cómo funciona?</b><button class="ghost small" id="subirHelpClose">Cerrar</button></div>
+        <div class="subir-help-grid">
+          <figure><img src="assets/subir-favoritas.png" alt="Islas, Favoritas, tu isla"><figcaption><b>1 · Tu isla en Favoritas</b>Ten tu isla en <b>Islas → Favoritas</b> y las <b>dos cuentas con permisos</b> en la isla.</figcaption></figure>
+          <figure><img src="assets/subir-baldosas.png" alt="Baldosa roja y baldosa blanca"><figcaption><b>2 · Baldosa roja y blanca</b>Pon en el área una baldosa <b>roja</b> y otra <b>blanca</b> del catálogo; las cuentas irán hacia ellas según las coloques. La <b>blanca siempre envía</b> y la <b>roja siempre recibe</b>.</figcaption></figure>
+          <figure><img src="assets/subir-reconecta.svg" alt="Se recupera solo"><figcaption><b>3 · Se recupera solo</b>Si un envío se queda colgado, lo vuelve a enviar. Si no hay respuesta en 2 minutos, reinicia y vuelve a la isla. Lo mismo cuando se va la conexión o hay mantenimiento.</figcaption></figure>
         </div>
       </div>
 
