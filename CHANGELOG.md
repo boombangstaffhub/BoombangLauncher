@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.9.2
+
+- **Subir datos encuentra las baldosas en cualquier PC.** Con la escala de Windows al 125 %, 150 % o más (lo normal en portátiles y pantallas grandes), el launcher buscaba la baldosa roja y la blanca en el sitio equivocado y salía «No encuentro la baldosa roja». Ahora calcula bien la escala, y además acepta un poco más de variación de color.
+
 ## 1.9.1
 
 - **Subir datos → «¿Cómo funciona?»** más corto y claro, en tres pasos con imágenes: tu isla en Favoritas con permisos para las dos cuentas, la baldosa roja (recibe) y la blanca (envía) del catálogo, y cómo se recupera solo si algo se cuelga, se va la conexión o hay mantenimiento.

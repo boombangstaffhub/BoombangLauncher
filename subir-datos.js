@@ -66,12 +66,16 @@ const PAGE_HELPERS = `
 `;
 
 // ------------------------------------------------------------ imagen → píxeles
-function bitmapInfo(img) {
+// viewW = ancho de la página en píxeles CSS. Con la escala de Windows al 125 % / 150 % la imagen
+// del juego tiene más píxeles que la página, así que la escala se calcula comparando las dos.
+function bitmapInfo(img, viewW) {
   if (!img || img.isEmpty()) return null;
   const size = img.getSize();
   const buf = img.toBitmap();
-  const s = Math.sqrt(buf.length / 4 / (size.width * size.height)) || 1;
-  return { buf, s, W: Math.round(size.width * s), H: Math.round(size.height * s) };
+  const k = Math.sqrt(buf.length / 4 / (size.width * size.height)) || 1;   // píxeles del bitmap por unidad de getSize()
+  const W = Math.round(size.width * k), H = Math.round(size.height * k);
+  const s = viewW > 0 ? W / viewW : k;
+  return { buf, s, W, H };
 }
 function pixel(info, x, y) {
   const px = Math.round(x * info.s), py = Math.round(y * info.s);
@@ -79,8 +83,8 @@ function pixel(info, x, y) {
   const i = (py * info.W + px) * 4;                      // BGRA
   return [info.buf[i + 2], info.buf[i + 1], info.buf[i]];
 }
-const isRed = p => p && p[0] >= 190 && p[1] <= 70 && p[2] <= 70;
-const isWhite = p => p && p[0] >= 232 && p[1] >= 232 && p[2] >= 232;
+const isRed = p => p && p[0] >= 170 && p[1] <= 90 && p[2] <= 90 && p[0] > 2 * Math.max(p[1], p[2], 1);
+const isWhite = p => p && p[0] >= 215 && p[1] >= 215 && p[2] >= 215 && Math.max(...p) - Math.min(...p) <= 25;
 
 // ------------------------------------------------------------------ Bot
 class Bot {
@@ -223,6 +227,7 @@ class Bot {
       if (cv) { const cr = cv.getBoundingClientRect(); const lw = parseFloat(cv.style.width) || cr.width; out.cv = { x: cr.x, y: cr.y, w: cr.width, h: cr.height, k: cr.width / lw }; }
       const chat = [...document.querySelectorAll('input, textarea')].some(e => __vis(e) && /chatear/i.test(e.placeholder || ''));
       out.inRoom = !!(r && r.avatars && r.avatars.size > 0 && (r.spaceModel || chat));
+      out.vw = window.innerWidth;
       return out;
     `);
   }
@@ -254,7 +259,7 @@ class Bot {
       img = this.frame;
     }
     if (!img) { try { img = await this.win.webContents.capturePage(); } catch (_) {} }
-    const info = bitmapInfo(img);
+    const info = bitmapInfo(img, st.vw);
     if (!info) return null;
     // Puntos dentro del rombo de la baldosa, lejos del centro (donde podría haber un Keko).
     const PTS = [[-26, 0], [26, 0], [-13, -7], [13, -7], [-13, 7], [13, 7], [0, -11], [0, 11]];
