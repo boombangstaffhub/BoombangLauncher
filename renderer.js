@@ -19,7 +19,13 @@ const THEMES = [
   { id:'halloween', name:'Halloween',      tag:'HALLOWEEN', desc:'Luna, niebla y murciélagos',    sw:['#2c1038','#ff8a1c','#b6ff3b'] },
   { id:'clouds',    name:'Mar de nubes',   tag:'NUBES',     desc:'Atardecer entre nubes',         sw:['#3a2a6e','#ff9ec4','#ffd9b8'] },
   { id:'leaves',    name:'Hojas al viento',tag:'HOJAS',     desc:'Aldea al atardecer y viento',   sw:['#2a1406','#ff8c1e','#78dc6e'] },
-  { id:'storm',     name:'Rayo nocturno',  tag:'RAYO',      desc:'Luna roja, rayos y cuervos',    sw:['#14102e','#7a6cff','#ff4658'] }
+  { id:'storm',     name:'Rayo nocturno',  tag:'RAYO',      desc:'Luna roja, rayos y cuervos',    sw:['#14102e','#7a6cff','#ff4658'] },
+  { id:'graphite',  name:'Grafito',        tag:'GRAFITO',   desc:'Lluvia sobre el cristal',       sw:['#1d1f24','#5b6270','#aeb6c4'] },
+  { id:'sand',      name:'Arena',          tag:'ARENA',     desc:'Dunas y arena al viento',       sw:['#3e2f20','#a8794a','#e6c99a'] },
+  { id:'coffee',    name:'Café',           tag:'CAFÉ',      desc:'Vapor y granos de café',        sw:['#2a190f','#8a5530','#d9a36a'] },
+  { id:'honey',     name:'Miel',           tag:'MIEL',      desc:'Polen, sol y luciérnagas',      sw:['#33250a','#d99a00','#ffcf3a'] },
+  { id:'lemonade',  name:'Pink Lemonade',  tag:'LEMONADE',  desc:'Burbujas y rodajas de limón',   sw:['#43102b','#ff6fa8','#fff06a'] },
+  { id:'candy',     name:'Candy Cotton',   tag:'CANDY',     desc:'Nubes de algodón de azúcar',    sw:['#33245c','#ff8fcf','#a8d8ff'] }
 ];
 const OLD_THEME = { nebula:'sakura', cosmos:'ocean', midnight:'galaxy', violet:'galaxy', emerald:'aurora' };   // names used by earlier versions
 function applyTheme(theme){

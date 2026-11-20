@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.9.4
+
+- **6 fondos nuevos con efectos** (Ajustes → Diseño):
+  - **Grafito**: lluvia sobre el cristal, gotas que resbalan y luces de ciudad.
+  - **Arena**: dunas al atardecer y arena al viento.
+  - **Café**: vapor en espirales, granos de café flotando y luces cálidas.
+  - **Miel**: panal, rayos de sol, polen y luciérnagas.
+  - **Pink Lemonade**: burbujas, rodajas de limón y destellos de hielo.
+  - **Candy Cotton**: nubes de algodón de azúcar, fideos de colores y brillos.
+  El BB Hub y la pantalla de carga del juego también se pintan con el tema elegido.
+
 ## 1.9.3
 
 - **Subir datos: la espera vuelve sola a su sitio.** Si por lag un envío se cuelga, la espera sube como siempre; ahora, cuando todo va bien otra vez (15 datos seguidos sin cuelgues), baja 100 ms cada vez hasta volver a su valor: el original (beso 3100, flor 4900, cóctel 8800) o el que hayas puesto tú a mano.

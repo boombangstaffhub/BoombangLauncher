@@ -6,6 +6,9 @@
 //   clouds    sunset sky, three layers of soft clouds drifting, birds
 //   leaves    village rooftops at sunset, leaves in the wind (gusts, whirls), smoke puffs
 //   storm     red moon, dark clouds, lightning, crows and falling feathers
+//   graphite  rain on glass, sliding drops, blurred city lights      sand    dunes at dusk, blowing sand, hazy sun
+//   coffee    swirling steam, floating coffee beans, warm bokeh      honey   honeycomb, sun rays, pollen and fireflies
+//   lemonade  fizzy bubbles, turning lemon slices, ice sparkles      candy   pastel cotton-candy clouds, sprinkles, sparkles
 // Capped at ~30 fps, paused while the window is hidden, a single still frame with reduced motion.
 (() => {
   const canvas = document.getElementById('galaxy');
@@ -441,6 +444,214 @@
           ctx.fillStyle = 'rgba(14,10,22,.85)'; ctx.beginPath(); ctx.moveTo(0, -f.s); ctx.quadraticCurveTo(f.s * .35, -f.s * .2, 0, f.s); ctx.quadraticCurveTo(-f.s * .35, -f.s * .2, 0, -f.s); ctx.fill();
           ctx.strokeStyle = 'rgba(140,130,200,.35)'; ctx.lineWidth = .8 * dpr; ctx.beginPath(); ctx.moveTo(0, -f.s); ctx.lineTo(0, f.s * 1.15); ctx.stroke();
           ctx.restore();
+        }
+      };
+    },
+    graphite() {
+      // Rainy night behind glass: blurred city lights low down, thin rain streaks, drops that cling and slide.
+      const lights = Array.from({ length: Math.round(Math.min(26, area() / 40000)) }, () => ({
+        x: Math.random() * w, y: h * rnd(.62, .98), r: rnd(18, 60) * dpr, a: rnd(.05, .14), ph: rnd(0, TAU),
+        c: ['255,214,150', '170,200,255', '255,170,140', '220,225,235'][(Math.random() * 4) | 0] }));
+      const streaks = Array.from({ length: Math.round(Math.min(140, area() / 9000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, l: rnd(10, 26) * dpr, v: rnd(.5, .9) * dpr }));
+      const drops = Array.from({ length: Math.round(Math.min(46, area() / 26000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, r: rnd(1.4, 3.6) * dpr, v: 0, hold: rnd(500, 6000) }));
+      return (t, dt) => {
+        for (const L of lights) {
+          const a = L.a * (.75 + .25 * Math.sin(t * .0006 + L.ph));
+          const g = ctx.createRadialGradient(L.x, L.y, 0, L.x, L.y, L.r);
+          g.addColorStop(0, `rgba(${L.c},${a.toFixed(3)})`); g.addColorStop(1, `rgba(${L.c},0)`);
+          ctx.fillStyle = g; ctx.fillRect(L.x - L.r, L.y - L.r, L.r * 2, L.r * 2);
+        }
+        ctx.strokeStyle = 'rgba(200,210,225,.24)'; ctx.lineWidth = 1 * dpr; ctx.beginPath();
+        for (const s of streaks) {
+          if (!reduce) { s.y += s.v * dt; s.x -= s.v * dt * .12; if (s.y > h + s.l) { s.y = -s.l; s.x = Math.random() * w * 1.1; } }
+          ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.l * .12, s.y + s.l);
+        }
+        ctx.stroke();
+        for (const d of drops) {
+          if (!reduce) {
+            if (d.hold > 0) d.hold -= dt; else { d.v = Math.min(d.v + .00006 * dt * dpr, .35 * dpr); d.y += d.v * dt; }
+            if (d.y > h + 10) { d.y = rnd(-.1, .6) * h; d.x = Math.random() * w; d.v = 0; d.hold = rnd(800, 6000); }
+          }
+          if (d.v > .02 * dpr) { ctx.strokeStyle = 'rgba(210,220,235,.10)'; ctx.lineWidth = d.r * .9; ctx.beginPath(); ctx.moveTo(d.x, d.y - d.r * 9); ctx.lineTo(d.x, d.y); ctx.stroke(); }
+          const g = ctx.createRadialGradient(d.x - d.r * .3, d.y - d.r * .3, 0, d.x, d.y, d.r);
+          g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(.6, 'rgba(190,200,215,.22)'); g.addColorStop(1, 'rgba(190,200,215,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill();
+        }
+      };
+    },
+    sand() {
+      // Dunes at dusk in sand and beige; grains of sand blow across in the wind, a big soft sun in the haze.
+      const dunes = [
+        { y: .62, amp: .05, k: 1.3, col: '120,92,66', sp: .004 },
+        { y: .72, amp: .06, k: .9, col: '164,128,92', sp: .008 },
+        { y: .84, amp: .05, k: 1.7, col: '206,172,128', sp: .014 }
+      ].map(d => ({ ...d, ph: rnd(0, TAU), off: 0 }));
+      const grains = Array.from({ length: Math.round(Math.min(160, area() / 7000)) }, () => ({ x: Math.random() * w, y: h * rnd(.45, 1), v: rnd(.08, .3) * dpr, r: rnd(.5, 1.6) * dpr, a: rnd(.15, .5), ph: rnd(0, TAU) }));
+      return (t, dt) => {
+        const sx = w * .72, sy = h * .34, sr = Math.min(w, h) * .16;
+        const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr * 3);
+        halo.addColorStop(0, 'rgba(255,228,180,.22)'); halo.addColorStop(.25, 'rgba(255,214,160,.10)'); halo.addColorStop(1, 'rgba(255,214,160,0)');
+        ctx.fillStyle = halo; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(255,236,200,.16)'; ctx.beginPath(); ctx.arc(sx, sy, sr * .5, 0, TAU); ctx.fill();
+        for (const d of dunes) {
+          if (!reduce) d.off += d.sp * dt * dpr;
+          ctx.fillStyle = `rgba(${d.col},.9)`; ctx.beginPath(); ctx.moveTo(0, h);
+          for (let x = 0; x <= w; x += 8 * dpr) {
+            const u = (x + d.off) / w;
+            ctx.lineTo(x, h * (d.y + d.amp * Math.sin(u * TAU * d.k + d.ph) + d.amp * .4 * Math.sin(u * TAU * d.k * 2.3 + d.ph * 2)));
+          }
+          ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
+        }
+        for (const g of grains) {
+          if (!reduce) { g.x += g.v * dt; g.y += Math.sin(t * .001 + g.ph) * .03 * dt * dpr; if (g.x > w + 4) { g.x = -4; g.y = h * rnd(.45, 1); } }
+          ctx.fillStyle = `rgba(250,232,200,${g.a})`; ctx.fillRect(g.x, g.y, g.r * 2.4, g.r);
+        }
+      };
+    },
+    coffee() {
+      // A warm café: steam rising in soft swirls, coffee beans floating slowly, little bokeh lights.
+      const bean = (s) => {
+        const c = document.createElement('canvas'); c.width = Math.ceil(s * 1.4); c.height = Math.ceil(s);
+        const g = c.getContext('2d'), cx = c.width / 2, cy = c.height / 2;
+        const grd = g.createRadialGradient(cx - s * .2, cy - s * .2, 0, cx, cy, s * .7);
+        grd.addColorStop(0, '#9a6a45'); grd.addColorStop(1, '#4a2a17');
+        g.fillStyle = grd; g.beginPath(); g.ellipse(cx, cy, s * .62, s * .45, 0, 0, TAU); g.fill();
+        g.strokeStyle = 'rgba(30,14,6,.75)'; g.lineWidth = s * .08; g.beginPath();
+        g.moveTo(cx - s * .5, cy); g.bezierCurveTo(cx - s * .15, cy - s * .18, cx + s * .15, cy + s * .18, cx + s * .5, cy); g.stroke();
+        return c;
+      };
+      const beans = Array.from({ length: Math.round(Math.min(18, area() / 70000)) }, () => { const s = rnd(14, 30) * dpr; return { img: bean(s), x: Math.random() * w, y: Math.random() * h, v: rnd(.006, .02) * dpr, rot: rnd(0, TAU), vr: rnd(-.0004, .0004), a: rnd(.35, .75) }; });
+      const bokeh = Array.from({ length: Math.round(Math.min(30, area() / 36000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, r: rnd(6, 26) * dpr, a: rnd(.04, .12), ph: rnd(0, TAU) }));
+      const steam = Array.from({ length: 5 }, (_, i) => ({ x: w * (.15 + .18 * i + rnd(-.04, .04)), ph: rnd(0, TAU), sp: rnd(.6, 1.1) }));
+      return (t, dt) => {
+        for (const b of bokeh) {
+          const a = b.a * (.7 + .3 * Math.sin(t * .0007 + b.ph));
+          const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+          g.addColorStop(0, `rgba(255,196,130,${a.toFixed(3)})`); g.addColorStop(1, 'rgba(255,196,130,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+        }
+        ctx.lineCap = 'round';
+        for (const s of steam) {
+          for (let k = 0; k < 3; k++) {
+            ctx.beginPath();
+            for (let i = 0; i <= 40; i++) {
+              const u = i / 40, y = h * (1.02 - u * .95);
+              const x = s.x + Math.sin(u * 7 + t * .0011 * s.sp + s.ph + k * 1.7) * (22 + 60 * u) * dpr + k * 10 * dpr;
+              i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+            }
+            ctx.strokeStyle = `rgba(255,236,220,${(.07 - k * .018).toFixed(3)})`; ctx.lineWidth = (16 - k * 4) * dpr; ctx.stroke();
+          }
+        }
+        for (const b of beans) {
+          if (!reduce) { b.y -= b.v * dt; b.rot += b.vr * dt; if (b.y < -40) { b.y = h + 40; b.x = Math.random() * w; } }
+          ctx.save(); ctx.globalAlpha = b.a; ctx.translate(b.x + px * 10 * dpr, b.y + py * 10 * dpr); ctx.rotate(b.rot);
+          ctx.drawImage(b.img, -b.img.width / 2, -b.img.height / 2); ctx.restore();
+        }
+      };
+    },
+    honey() {
+      // Honey and sun: a faint honeycomb, warm rays from above, golden pollen and fireflies drifting.
+      const comb = document.createElement('canvas');
+      { const R = 34 * dpr, cw = R * Math.sqrt(3), g = comb.getContext('2d');
+        comb.width = Math.ceil(w); comb.height = Math.ceil(h);
+        g.strokeStyle = 'rgba(255,205,80,.06)'; g.lineWidth = 2 * dpr;
+        for (let row = -1; row * R * 1.5 < h + R; row++) for (let col = -1; col * cw < w + cw; col++) {
+          const cx = col * cw + (row % 2 ? cw / 2 : 0), cy = row * R * 1.5;
+          g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); g.stroke();
+        } }
+      const motes = Array.from({ length: Math.round(Math.min(110, area() / 9000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, r: rnd(.8, 2.6) * dpr, vx: rnd(-.02, .02) * dpr, vy: rnd(-.03, -.008) * dpr, ph: rnd(0, TAU), glow: Math.random() < .22 }));
+      return (t, dt) => {
+        ctx.drawImage(comb, 0, 0);
+        for (let i = 0; i < 4; i++) {
+          const x = w * (.18 + .22 * i) + Math.sin(t * .0002 + i) * 30 * dpr;
+          const g = ctx.createLinearGradient(x, 0, x + w * .1, h);
+          const a = .05 + .03 * Math.sin(t * .0005 + i * 1.3);
+          g.addColorStop(0, `rgba(255,224,120,${a.toFixed(3)})`); g.addColorStop(1, 'rgba(255,224,120,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 30 * dpr, 0); ctx.lineTo(x + 50 * dpr, 0); ctx.lineTo(x + w * .2, h); ctx.lineTo(x + w * .06, h); ctx.closePath(); ctx.fill();
+        }
+        for (const m of motes) {
+          if (!reduce) { m.x += (m.vx + Math.sin(t * .0008 + m.ph) * .015 * dpr) * dt; m.y += m.vy * dt; if (m.y < -6) { m.y = h + 6; m.x = Math.random() * w; } }
+          const fl = .5 + .5 * Math.sin(t * .003 + m.ph);
+          if (m.glow) {
+            const g = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r * 7);
+            g.addColorStop(0, `rgba(255,226,90,${(.35 * fl + .1).toFixed(3)})`); g.addColorStop(1, 'rgba(255,226,90,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 7, 0, TAU); ctx.fill();
+          }
+          ctx.fillStyle = `rgba(255,236,150,${(.45 + .4 * fl).toFixed(3)})`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, TAU); ctx.fill();
+        }
+      };
+    },
+    lemonade() {
+      // Pink lemonade: fizzy bubbles rising, lemon slices turning slowly, little ice sparkles.
+      const lemon = (s) => {
+        const c = document.createElement('canvas'); c.width = c.height = Math.ceil(s * 2.2);
+        const g = c.getContext('2d'), cx = c.width / 2;
+        g.fillStyle = '#ffe14a'; g.beginPath(); g.arc(cx, cx, s, 0, TAU); g.fill();
+        g.fillStyle = '#fff7c8'; g.beginPath(); g.arc(cx, cx, s * .88, 0, TAU); g.fill();
+        for (let i = 0; i < 8; i++) {
+          const a0 = i * TAU / 8 + .06, a1 = (i + 1) * TAU / 8 - .06;
+          g.fillStyle = i % 2 ? '#ffe56a' : '#ffd93d';
+          g.beginPath(); g.moveTo(cx, cx); g.arc(cx, cx, s * .8, a0, a1); g.closePath(); g.fill();
+        }
+        g.fillStyle = '#fff7c8'; g.beginPath(); g.arc(cx, cx, s * .1, 0, TAU); g.fill();
+        return c;
+      };
+      const slices = Array.from({ length: Math.round(Math.min(7, area() / 150000) + 3) }, () => { const s = rnd(22, 44) * dpr; return { img: lemon(s), x: Math.random() * w, y: Math.random() * h, v: rnd(.006, .016) * dpr, rot: rnd(0, TAU), vr: rnd(-.0003, .0003), a: rnd(.55, .85) }; });
+      const bubbles = Array.from({ length: Math.round(Math.min(120, area() / 8000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, r: rnd(1.2, 5) * dpr, v: rnd(.03, .1) * dpr, ph: rnd(0, TAU) }));
+      const sparks = Array.from({ length: Math.round(Math.min(40, area() / 25000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, ph: rnd(0, TAU), sp: rnd(.6, 1.6) }));
+      return (t, dt) => {
+        for (const s of slices) {
+          if (!reduce) { s.y -= s.v * dt; s.rot += s.vr * dt; if (s.y < -60 * dpr) { s.y = h + 60 * dpr; s.x = Math.random() * w; } }
+          ctx.save(); ctx.globalAlpha = s.a; ctx.translate(s.x + px * 8 * dpr, s.y + py * 8 * dpr); ctx.rotate(s.rot);
+          ctx.drawImage(s.img, -s.img.width / 2, -s.img.height / 2); ctx.restore();
+        }
+        for (const b of bubbles) {
+          if (!reduce) { b.y -= b.v * dt; b.x += Math.sin(t * .002 + b.ph) * .02 * dt * dpr; if (b.y < -8) { b.y = h + 8; b.x = Math.random() * w; } }
+          ctx.strokeStyle = 'rgba(255,240,250,.5)'; ctx.lineWidth = Math.max(1, b.r * .25);
+          ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, TAU); ctx.fill();
+        }
+        for (const p of sparks) {
+          const a = Math.max(0, Math.sin(t * .0015 * p.sp + p.ph)); if (a < .05) continue;
+          const r = (2 + 4 * a) * dpr;
+          ctx.strokeStyle = `rgba(255,255,255,${(.7 * a).toFixed(3)})`; ctx.lineWidth = 1.2 * dpr;
+          ctx.beginPath(); ctx.moveTo(p.x - r, p.y); ctx.lineTo(p.x + r, p.y); ctx.moveTo(p.x, p.y - r); ctx.lineTo(p.x, p.y + r); ctx.stroke();
+        }
+      };
+    },
+    candy() {
+      // Candy cotton: fluffy pastel clouds of spun sugar (pink, lilac, sky blue), sprinkles falling and soft sparkles.
+      const fluff = (cw, col) => {
+        const c = document.createElement('canvas'), ch = Math.round(cw * .62); c.width = Math.round(cw); c.height = ch;
+        const g = c.getContext('2d'); g.filter = `blur(${Math.max(2, cw * .03)}px)`;
+        for (let i = 0; i < 14; i++) { const r = cw * rnd(.09, .17); g.fillStyle = `rgba(${col},.36)`; g.beginPath(); g.arc(cw * rnd(.22, .78), ch * rnd(.35, .65), r, 0, TAU); g.fill(); }
+        g.filter = 'none'; g.globalCompositeOperation = 'source-atop';
+        const hl = g.createLinearGradient(0, 0, 0, ch); hl.addColorStop(0, 'rgba(255,255,255,.35)'); hl.addColorStop(.5, 'rgba(255,255,255,0)');
+        g.fillStyle = hl; g.fillRect(0, 0, cw, ch);
+        return c;
+      };
+      const S = Math.min(w, h), cols = ['255,170,215', '200,170,255', '160,210,255', '255,200,230'];
+      const clouds = Array.from({ length: 7 }, (_, i) => ({ img: fluff(S * rnd(.45, .85), cols[i % cols.length]), x: rnd(-.3, 1) * w, y: h * rnd(-.05, .85), sp: rnd(.004, .012) * dpr, bob: rnd(0, TAU) }));
+      const SPR = ['#ff7ab8', '#ffd84a', '#7ad4ff', '#a98bff', '#7cf0b0', '#ffffff'];
+      const sprinkles = Array.from({ length: Math.round(Math.min(70, area() / 14000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, v: rnd(.02, .06) * dpr, rot: rnd(0, TAU), vr: rnd(-.002, .002), c: SPR[(Math.random() * SPR.length) | 0], l: rnd(5, 9) * dpr }));
+      const sparks = Array.from({ length: Math.round(Math.min(36, area() / 26000)) }, () => ({ x: Math.random() * w, y: Math.random() * h, ph: rnd(0, TAU), sp: rnd(.5, 1.4) }));
+      return (t, dt) => {
+        for (const c of clouds) {
+          if (!reduce) { c.x += c.sp * dt; if (c.x > w + 20) c.x = -c.img.width - 20; }
+          ctx.drawImage(c.img, c.x + px * 10 * dpr, c.y + Math.sin(t * .0004 + c.bob) * 8 * dpr + py * 10 * dpr);
+        }
+        ctx.lineCap = 'round';
+        for (const s of sprinkles) {
+          if (!reduce) { s.y += s.v * dt; s.rot += s.vr * dt; if (s.y > h + 10) { s.y = -10; s.x = Math.random() * w; } }
+          ctx.strokeStyle = s.c; ctx.globalAlpha = .75; ctx.lineWidth = 2.6 * dpr;
+          ctx.beginPath(); ctx.moveTo(s.x - Math.cos(s.rot) * s.l / 2, s.y - Math.sin(s.rot) * s.l / 2); ctx.lineTo(s.x + Math.cos(s.rot) * s.l / 2, s.y + Math.sin(s.rot) * s.l / 2); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        for (const p of sparks) {
+          const a = Math.max(0, Math.sin(t * .0013 * p.sp + p.ph)); if (a < .05) continue;
+          const r = (2 + 5 * a) * dpr;
+          ctx.fillStyle = `rgba(255,255,255,${(.8 * a).toFixed(3)})`;
+          ctx.beginPath(); ctx.moveTo(p.x, p.y - r); ctx.lineTo(p.x + r * .25, p.y - r * .25); ctx.lineTo(p.x + r, p.y); ctx.lineTo(p.x + r * .25, p.y + r * .25); ctx.lineTo(p.x, p.y + r); ctx.lineTo(p.x - r * .25, p.y + r * .25); ctx.lineTo(p.x - r, p.y); ctx.lineTo(p.x - r * .25, p.y - r * .25); ctx.closePath(); ctx.fill();
         }
       };
     }
