@@ -43,6 +43,16 @@ function normalize(cfg) {
   c.esperas = {};
   for (const g of Object.keys(GIFTS)) c.esperas[g] = Math.round(clampNum(src[g], DEFAULTS.esperas[g], MIN_ESPERA, 60000));
   delete c.espera;
+  // esperasBase = el valor al que vuelve la espera cuando todo va bien: el original o el que pongas tú a mano.
+  const baseSrc = cfg && cfg.esperasBase && typeof cfg.esperasBase === 'object' ? cfg.esperasBase : {};
+  c.esperasBase = {};
+  for (const g of Object.keys(GIFTS)) c.esperasBase[g] = Math.round(clampNum(baseSrc[g], DEFAULTS.esperas[g], MIN_ESPERA, 60000));
+  const man = cfg && cfg.esperaManual;
+  if (man && GIFTS[man.dato] && Number.isFinite(Number(man.value))) {
+    const v = Math.round(clampNum(man.value, DEFAULTS.esperas[man.dato], MIN_ESPERA, 60000));
+    c.esperas[man.dato] = v; c.esperasBase[man.dato] = v;
+  }
+  delete c.esperaManual;
   c.clicE = clampNum(c.clicE, 70, 10, 2000);
   c.clicR = clampNum(c.clicR, 70, 10, 2000);
   c.atascoE = clampNum(c.atascoE, 5, 2, 600);
@@ -566,7 +576,8 @@ function createSubirDatos({ notify, save }) {
 
       // EMISOR: un clic por envío y la espera fija entre datos.
       (async () => {
-        let enviadoSince = 0, prevEnv = false, noFicha = 0, cancelled = false, nextAllowed = 0;
+        let enviadoSince = 0, prevEnv = false, noFicha = 0, cancelled = false, nextAllowed = 0, okStreak = 0;
+        const BAJAR_CADA = 15, BAJAR_MS = 100;   // tras 15 datos seguidos sin cuelgues, la espera baja 100 ms hacia su valor original
         while (!this.stopped) {
           if (paused || E.state !== 'LISTO' || R.state !== 'LISTO') { await sleep(150); continue; }
           const s = await E.js(`const g = __byImg(${gift().img.toString()}); return { g: g ? __center(g) : null, env: !!__byText('Enviado a') };`);
@@ -574,6 +585,16 @@ function createSubirDatos({ notify, save }) {
 
           if (prevEnv && !s.env && !cancelled) {            // aceptado
             this.stats.count++; fails = 0;
+            // Todo va bien: si la espera subió por algún lag, vuelve poco a poco a su valor original.
+            {
+              const g = S().dato, base = (S().esperasBase && S().esperasBase[g]) || DEFAULTS.esperas[g] || MIN_ESPERA, cur = S().esperas[g];
+              if (cur > base && ++okStreak >= BAJAR_CADA) {
+                okStreak = 0;
+                this.cfg.esperas[g] = Math.max(base, cur - BAJAR_MS);
+                this.log('info', `Va bien: espera del ${g.toLowerCase()} bajada a ${this.cfg.esperas[g]} ms.`);
+                try { save && save(this.cfg); } catch (_) {}
+              } else if (cur <= base) okStreak = 0;
+            }
             nextAllowed = Date.now() + S().esperas[S().dato];
             this.log('dato', `Dato #${this.stats.count} (${S().dato})`);
             this.pushStatus();
@@ -587,6 +608,7 @@ function createSubirDatos({ notify, save }) {
               this.stats.cancels++;
               E.log('warn', `«Enviado a» colgado ${S().atascoE} s: Cancelar y vuelvo a enviar.`);
               cancelled = true;
+              okStreak = 0;
               await E.clickText('Cancelar');
               enviadoSince = 0;
               // Se ha colgado: este dato necesita más espera. Subimos 0,3 s (nunca baja de 3100) y se guarda.

@@ -946,7 +946,7 @@ async function installClientHub() {
     const jsPath = path.join(__dirname, 'client-hub.js');
     const css = fs.readFileSync(cssPath, 'utf8');
     const code = fs.readFileSync(jsPath, 'utf8');
-    window.__BB_HUB_CSS__ = css;
+    window.__BB_HUB_CSS__ = require('./hub-fonts').withFonts(css);
     eval(code);
     clientHubInstalled = true;
   } catch (error) {

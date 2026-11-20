@@ -26,7 +26,7 @@
     window.sessionStartedAt = Number(ctx?.sessionStartedAt) || Date.now();
     window.statusMessage = { state: 'connected', latency: null };
     window.currentFps = 0;
-    window.__BB_HUB_CSS__ = fs.readFileSync(path.join(__dirname, 'client-hub.css'), 'utf8');
+    window.__BB_HUB_CSS__ = require(path.join(__dirname, 'hub-fonts.js')).withFonts(fs.readFileSync(path.join(__dirname, 'client-hub.css'), 'utf8'));
     const script = document.createElement('script');
     script.src = 'client-hub.js';
     script.dataset.requestedTab = requestedTab;

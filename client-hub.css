@@ -143,3 +143,108 @@
 .al-conn{font-weight:700}.al-conn.ok{color:#5dffa0}.al-conn.no{color:#ffd166}.al-wide{display:inline-flex;align-items:center;gap:4px;cursor:pointer}.al-wide input{margin:0}
 #__bb_hub_root[data-idle] *,#__bb_hub_root[data-idle] *::before,#__bb_hub_root[data-idle] *::after{animation-play-state:paused!important}
 
+/* Ajustes: «Otras opciones» plegadas y filas con varios controles */
+.hub-more{margin-top:8px}.hub-more summary{cursor:pointer;padding:8px 4px;font-size:12px;color:var(--bb-muted,#a9a3c9)}.hub-more .hub-check{margin-top:8px}
+.hub-check .hub-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+
+/* ===================================================================
+   Rediseño 1.9.3 · «Panel de juego»
+   Letra redondeada como la de BoomBang (Baloo 2), superficies lisas,
+   listas agrupadas con interruptores y botones con relieve de juego
+   para la pestaña activa y la acción principal.
+   =================================================================== */
+#__bb_hub_root{
+  --hz-ink:#17112e; --hz-side:#120d26; --hz-surf:rgba(255,255,255,.045); --hz-surf2:rgba(255,255,255,.075);
+  --hz-line:rgba(255,255,255,.08); --hz-text:#f3f0ff; --hz-mute:#aaa3cf;
+  --hz-acc:rgb(var(--hub-m)); --hz-acc2:rgb(var(--hub-m2)); --hz-edge:rgb(var(--hub-d));
+  --hz-on:#36c275; --hz-on-edge:#1f8a4f;
+  --hz-round:"BB Baloo","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color:var(--hz-text)}
+#__bb_hub_root #__bb_hub_window{background:var(--hz-ink);border:1px solid rgba(255,255,255,.1);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+#__bb_hub_root #__bb_hub_window::before{opacity:.35;animation:none}
+#__bb_hub_root #__bb_hub_window::after{display:none}
+.bb-hub-standalone #__bb_hub_root #__bb_hub_window{border-radius:0;border:0}
+
+/* lateral */
+#__bb_hub_root .hub-side{background:var(--hz-side);border-right:1px solid var(--hz-line);padding:16px 12px}
+#__bb_hub_root .hub-brand{padding:4px 6px 18px}
+#__bb_hub_root .hub-logo{border-radius:14px;font-family:var(--hz-round);font-weight:800;font-size:16px;background:var(--hz-acc);box-shadow:0 3px 0 var(--hz-edge)}
+#__bb_hub_root .hub-brand strong{font-family:var(--hz-round);font-weight:800;font-size:17px;letter-spacing:0}
+#__bb_hub_root .hub-brand span{font-size:11px;letter-spacing:0;text-transform:none;color:var(--hz-mute)}
+#__bb_hub_root .hub-side-nav{gap:6px}
+#__bb_hub_root .hub-tab{font:600 15px/1 var(--hz-round);color:var(--hz-mute);padding:11px 12px;border-radius:14px;border:0;transform:none;box-shadow:none}
+#__bb_hub_root .hub-tab .ti{font-size:16px;width:22px}
+#__bb_hub_root .hub-tab:hover{background:var(--hz-surf);color:var(--hz-text);transform:none}
+#__bb_hub_root .hub-tab.active{color:#fff;background:var(--hz-acc);box-shadow:0 3px 0 var(--hz-edge);transform:translateY(-1px)}
+#__bb_hub_root .hub-tab::after,#__bb_hub_root .hub-tab::before{display:none}
+#__bb_hub_root .hub-mini-btn{font:600 13px var(--hz-round);border-radius:12px;background:var(--hz-surf);border:1px solid var(--hz-line);color:var(--hz-text);padding:10px}
+#__bb_hub_root .hub-mini-btn:hover{background:var(--hz-surf2)}
+
+/* cabecera: el nombre de la pestaña manda */
+#__bb_hub_root .hub-header{align-items:center;padding:18px 22px 14px;border-bottom:1px solid var(--hz-line)}
+#__bb_hub_root .hub-title{font:800 28px/1.05 var(--hz-round);letter-spacing:0;color:var(--hz-text);background:none;-webkit-text-fill-color:currentColor}
+#__bb_hub_root .hub-header-sub{margin-top:4px;font-size:13px;color:var(--hz-mute)}
+#__bb_hub_root .hub-header-tools{display:flex;align-items:center;gap:8px}
+#__bb_hub_root .hub-profile{margin:0;font:600 13px var(--hz-round);padding:6px 12px;border-radius:999px;background:var(--hz-surf2);border:0;color:var(--hz-text)}
+#__bb_hub_root .hub-status{font-size:12px;border-radius:999px;background:var(--hz-surf);border:0}
+#__bb_hub_root .hub-close{border-radius:12px;background:var(--hz-surf);border:1px solid var(--hz-line)}
+
+/* contenido */
+#__bb_hub_root .hub-content{padding:18px 22px 26px}
+#__bb_hub_root .hub-section{margin-bottom:22px}
+#__bb_hub_root .hub-label{font:600 16px/1.2 var(--hz-round);letter-spacing:0;color:var(--hz-text);text-transform:none;margin:0 2px 10px}
+#__bb_hub_root .hub-small,#__bb_hub_root .sb-intro{font-size:13px;line-height:1.5;color:var(--hz-mute)}
+#__bb_hub_root .sb-intro{margin:0 2px 10px}
+
+#__bb_hub_root .hub-card,#__bb_hub_root .hub-meta-card,#__bb_hub_root .hub-stat,#__bb_hub_root .hub-game-card,#__bb_hub_root .assist-card,#__bb_hub_root .sendero-card,#__bb_hub_root .hub-item,#__bb_hub_root .hub-hero{
+  background:var(--hz-surf);border:1px solid var(--hz-line);border-radius:18px;box-shadow:none}
+#__bb_hub_root .hub-hero{background:var(--hz-surf2)}
+#__bb_hub_root .hub-hero h2{font:800 24px var(--hz-round)}
+#__bb_hub_root .hub-hero-avatar{border-radius:16px;font-family:var(--hz-round);background:var(--hz-acc);box-shadow:0 3px 0 var(--hz-edge)}
+#__bb_hub_root .hub-session strong{font:800 22px var(--hz-round);letter-spacing:0}
+#__bb_hub_root .hub-stat strong{font:800 26px/1 var(--hz-round);color:var(--hz-text)}
+#__bb_hub_root .hub-stat span,#__bb_hub_root .hub-session span{font-size:12px;letter-spacing:0;text-transform:none;color:var(--hz-mute)}
+#__bb_hub_root .hub-meta-row{font-size:13px;border-color:var(--hz-line)}
+#__bb_hub_root .hub-game-card strong,#__bb_hub_root .assist-card strong,#__bb_hub_root .sendero-card strong{font:600 16px var(--hz-round)}
+#__bb_hub_root .tag,#__bb_hub_root .sendero-badge{border-radius:999px;font-size:11px;letter-spacing:0}
+
+/* filas: listas agrupadas con separadores */
+#__bb_hub_root .hub-check{padding:13px 16px;border-radius:16px;border:1px solid var(--hz-line);background:var(--hz-surf);gap:16px}
+#__bb_hub_root .hub-check strong{font:600 15px/1.25 var(--hz-round);color:var(--hz-text)}
+#__bb_hub_root .hub-check span{font-size:12.5px;line-height:1.45;color:var(--hz-mute)}
+#__bb_hub_root .hub-list{border:1px solid var(--hz-line);border-radius:18px;background:var(--hz-surf);overflow:hidden}
+#__bb_hub_root .hub-list>.hub-check{margin:0!important;border:0;border-radius:0;background:transparent}
+#__bb_hub_root .hub-list>.hub-check+.hub-check{border-top:1px solid var(--hz-line)}
+#__bb_hub_root .hub-more{margin-top:10px}
+#__bb_hub_root .hub-more summary{font:600 14px var(--hz-round);color:var(--hz-mute);padding:6px 4px;list-style:none}
+#__bb_hub_root .hub-more summary::before{content:"▸ "}#__bb_hub_root .hub-more[open] summary::before{content:"▾ "}
+#__bb_hub_root .hub-more .hub-list{margin-top:6px}
+
+/* interruptores en vez de casillas (verde como el tick del juego) */
+#__bb_hub_root .hub-check input[type="checkbox"]{appearance:none;-webkit-appearance:none;flex:none;width:46px;height:26px;margin:0;border-radius:999px;background:rgba(255,255,255,.16);position:relative;cursor:pointer;transition:background .18s}
+#__bb_hub_root .hub-check input[type="checkbox"]::before{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.3);transition:transform .18s}
+#__bb_hub_root .hub-check input[type="checkbox"]:checked{background:var(--hz-on)}
+#__bb_hub_root .hub-check input[type="checkbox"]:checked::before{transform:translateX(20px)}
+
+/* botones: el principal con relieve de botón de juego */
+#__bb_hub_root .hub-btn{font:600 14px var(--hz-round);border-radius:13px;padding:11px 14px;background:var(--hz-surf2);border:1px solid var(--hz-line);color:var(--hz-text);box-shadow:none;transition:background .15s,transform .08s}
+#__bb_hub_root .hub-btn:hover{background:rgba(255,255,255,.11)}
+#__bb_hub_root .hub-btn.primary,#__bb_hub_root .hub-btn.active{background:var(--hz-acc);border-color:transparent;color:#fff;box-shadow:0 3px 0 var(--hz-edge)}
+#__bb_hub_root .hub-btn.primary:hover{background:var(--hz-acc2)}
+#__bb_hub_root .hub-btn:active{transform:translateY(2px)}
+#__bb_hub_root .hub-btn.primary:active{box-shadow:0 1px 0 var(--hz-edge)}
+#__bb_hub_root .hub-btn::after{display:none}
+#__bb_hub_root .hub-open-modes .hub-btn strong{font:600 14px var(--hz-round)}
+#__bb_hub_root .hub-select{font:600 14px var(--hz-round);border-radius:12px;background:var(--hz-surf2);border:1px solid var(--hz-line);color:var(--hz-text);padding:9px 12px}
+#__bb_hub_root .hub-select option{background:#1d1638}
+#__bb_hub_root input[type="text"],#__bb_hub_root input[type="number"],#__bb_hub_root textarea{border-radius:12px;background:var(--hz-surf2);border:1px solid var(--hz-line);color:var(--hz-text)}
+#__bb_hub_root :focus-visible{outline:2px solid rgb(var(--hub-c));outline-offset:2px}
+#__bb_hub_root .hub-toast{font-family:var(--hz-round);border-radius:14px}
+@media (prefers-reduced-motion:reduce){#__bb_hub_root *{transition:none!important;animation:none!important}}
+
+/* filas sueltas seguidas → una sola lista */
+#__bb_hub_root .hub-check+.hub-check{margin-top:-1px!important;border-top-left-radius:0;border-top-right-radius:0}
+#__bb_hub_root .hub-check:has(+ .hub-check){border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
+#__bb_hub_root .hub-check-stack{flex-direction:column;align-items:stretch;gap:10px}
+#__bb_hub_root .hub-check-stack .hub-row{justify-content:flex-start}
+#__bb_hub_root .hub-check-stack .hub-row>*{flex:1}

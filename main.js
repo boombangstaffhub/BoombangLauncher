@@ -810,7 +810,8 @@ ipcMain.handle('autoclick:pause', (_e, on) => {
   return true;
 });
 // ---- Aviso de objetos (drops.js): global, the same for every profile ----
-const dropAlertConfig = () => normalizeDropAlert(readSettings().dropAlert || {});
+// El aviso de objetos ya no está en el BB Hub (1.9.3): se queda siempre desactivado.
+const dropAlertConfig = () => ({ ...normalizeDropAlert(readSettings().dropAlert || {}), enabled: false });
 function broadcastDropAlert() {
   const config = dropAlertConfig();
   for (const id of games.keys()) sendClientCommand(id, { type: 'drop-alert-config', config }).catch(() => {});

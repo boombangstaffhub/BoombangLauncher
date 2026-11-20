@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.9.3
+
+- **Subir datos: la espera vuelve sola a su sitio.** Si por lag un envío se cuelga, la espera sube como siempre; ahora, cuando todo va bien otra vez (15 datos seguidos sin cuelgues), baja 100 ms cada vez hasta volver a su valor: el original (beso 3100, flor 4900, cóctel 8800) o el que hayas puesto tú a mano.
+- **BB Hub rediseñado**: letra redondeada como la de BoomBang, la cabecera dice en qué pestaña estás, las opciones van en listas agrupadas con interruptores, y la pestaña activa y el botón principal tienen relieve de botón de juego.
+- **BB Hub más simple: 5 pestañas** (Inicio, Smart Bar, Autoclick, Minijuegos y Ajustes) en vez de 9.
+  - **Ajustes** junta lo útil de Cliente, Rendimiento y Vista: pantalla completa, recargar, borrar caché, límite de FPS, calidad fija, encaje y zoom, mostrar FPS, silenciar, siempre encima, burbujas de Discord, cómo abrir el Hub y modo streamer. Lo menos usado queda en «Otras opciones».
+  - Las **herramientas de cada minijuego** (como el Screen Marker de Sendero Oculto) ahora salen dentro de **Minijuegos** al elegir el juego.
+  - Quitados el **aviso de objetos** y las ayudas de **Simón Dice** y **Papa Caliente**; en Minijuegos queda Sendero Oculto con su Screen Marker.
+
 ## 1.9.2
 
 - **Subir datos encuentra las baldosas en cualquier PC.** Con la escala de Windows al 125 %, 150 % o más (lo normal en portátiles y pantallas grandes), el launcher buscaba la baldosa roja y la blanca en el sitio equivocado y salía «No encuentro la baldosa roja». Ahora calcula bien la escala, y además acepta un poco más de variación de color.

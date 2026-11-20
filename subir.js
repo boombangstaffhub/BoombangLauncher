@@ -6,6 +6,7 @@
 
   let minEspera = 3100;
   let esperas = { 'Beso': 3100, 'Cóctel': 8800, 'Flor': 4900 };   // espera por dato
+  let esperaManual = null;   // la que escribes tú a mano: también pasa a ser el valor al que vuelve
   let running = false;
   let startedAt = 0;
   let saveTimer = null;
@@ -58,6 +59,7 @@
       zona: $('subirZona').value.trim(),
       dato: $('subirDato').value,
       esperas: { ...esperas, [$('subirDato').value]: Math.max(minEspera, n('subirEspera', minEspera)) },
+      ...(esperaManual ? { esperaManual } : {}),
       clicE: n('subirClicE', 70), clicR: n('subirClicR', 70),
       atascoE: n('subirAtascoE', 5), atascoR: n('subirAtascoR', 120),
       baldosasAuto: $('subirTilesAuto').checked,
@@ -146,6 +148,7 @@
       const pass = $('subirZonaPass').value;
       try {
         await api.save(readForm(), pass ? pass : undefined);
+        esperaManual = null;
         if (pass) { $('subirZonaPass').value = ''; $('subirZonaPass').placeholder = 'Guardada ✓ (escribe para cambiarla)'; }
       } catch (_) {}
     }, 400);
@@ -153,7 +156,7 @@
 
   // ---- eventos
   $('subirDato').addEventListener('change', () => { $('subirEspera').value = esperas[$('subirDato').value] || minEspera; });
-  $('subirEspera').addEventListener('input', () => { const v = Number($('subirEspera').value); if (Number.isFinite(v) && v >= minEspera) esperas[$('subirDato').value] = v; });
+  $('subirEspera').addEventListener('input', () => { const v = Number($('subirEspera').value); if (Number.isFinite(v) && v >= minEspera) { esperas[$('subirDato').value] = v; esperaManual = { dato: $('subirDato').value, value: v }; } });
   $('subirHelpBtn').onclick = () => { $('subirHelp').classList.toggle('hidden'); if (!$('subirHelp').classList.contains('hidden')) $('subirHelp').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('subirHelpClose').onclick = () => $('subirHelp').classList.add('hidden');
   $('subirTilesAuto').addEventListener('change', () => $('subirTilesManual').classList.toggle('hidden', $('subirTilesAuto').checked));
